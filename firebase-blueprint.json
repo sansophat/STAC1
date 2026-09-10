@@ -1,0 +1,41 @@
+{
+  "rules": {
+    "trades": {
+      "id": "string",
+      "investor_name": "string",
+      "currency": "string",
+      "trade_date": "string",
+      "start_equity": "number",
+      "lot_size": "number",
+      "profit_pct": "number",
+      "profit_amount": "number",
+      "reinvest": "number",
+      "withdraw": "number",
+      "end_equity": "number",
+      "notes": "string",
+      "created_at": "string"
+    },
+    "investors": {
+      "id": "string",
+      "name": "string",
+      "account_number": "string",
+      "currency": "string",
+      "initial_capital": "number",
+      "profit_min": "number",
+      "profit_max": "number",
+      "reinvest_pct": "number",
+      "withdraw_pct": "number",
+      "withdraw_fee": "number",
+      "base_equity": "number",
+      "base_lot_size": "number",
+      "lot_increment": "number",
+      "notes": "string",
+      "created_at": "string"
+    },
+    "app_settings": {
+      "id": "string",
+      "data": "string",
+      "updated_at": "string"
+    }
+  }
+}

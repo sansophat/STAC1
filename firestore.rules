@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Shared live trading logs and accounts for real-time synchronization across devices (mobile & desktop)
+    match /trades/{tradeId} {
+      allow read, write: if true;
+    }
+    match /investors/{investorId} {
+      allow read, write: if true;
+    }
+    match /app_settings/{settingId} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

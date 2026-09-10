@@ -35,6 +35,17 @@ import { HistoryView } from './components/HistoryView';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminBrandingModal } from './components/AdminBrandingModal';
 import { RecentSimulationsModal } from './components/RecentSimulationsModal';
+import {
+  CloudSyncState,
+  subscribeToTrades,
+  subscribeToInvestors,
+  syncSaveTrade,
+  syncDeleteTrade,
+  syncSaveInvestor,
+  syncDeleteInvestor,
+  pushAllToCloud,
+  checkCloudHasData,
+} from './lib/firebaseSync';
 
 const INITIAL_INVESTORS: Investor[] = [
   {
@@ -210,6 +221,90 @@ export function App() {
     return safeStorage.getJSON<SimulationResult[]>('snl_sim_history', []);
   });
 
+  // Cloud Sync State
+  const [cloudSync, setCloudSync] = useState<CloudSyncState>({
+    status: 'connecting',
+    lastSyncedAt: null,
+    error: null,
+  });
+
+  // 1. Subscribe to real-time updates from Firebase Firestore
+  useEffect(() => {
+    let isSubscribed = true;
+
+    // Check if cloud already has trades; if empty, seed local data so phones don't start empty!
+    checkCloudHasData()
+      .then(async (hasData) => {
+        if (!hasData && isSubscribed) {
+          // Push current state to seed cloud database
+          try {
+            await pushAllToCloud({
+              trades,
+              investors,
+              params,
+              branding,
+              history,
+              recentSimulations: recentSessions,
+            });
+            if (isSubscribed) {
+              setCloudSync({
+                status: 'connected',
+                lastSyncedAt: new Date(),
+                error: null,
+              });
+            }
+          } catch (seedErr) {
+            console.warn('Initial cloud seed attempt:', seedErr);
+          }
+        }
+      })
+      .catch((err) => console.warn('checkCloudHasData err:', err));
+
+    // Listen to real-time Trades from Firestore
+    const unsubTrades = subscribeToTrades(
+      (cloudTrades) => {
+        if (!isSubscribed) return;
+        if (cloudTrades.length > 0) {
+          setTrades(cloudTrades);
+        }
+        setCloudSync((prev) => ({
+          ...prev,
+          status: 'connected',
+          lastSyncedAt: new Date(),
+          error: null,
+        }));
+      },
+      (err) => {
+        if (!isSubscribed) return;
+        console.warn('Trades subscription error:', err);
+        setCloudSync((prev) => ({
+          ...prev,
+          status: 'error',
+          error: err.message,
+        }));
+      }
+    );
+
+    // Listen to real-time Investors/Accounts from Firestore
+    const unsubInvestors = subscribeToInvestors(
+      (cloudInvestors) => {
+        if (!isSubscribed) return;
+        if (cloudInvestors.length > 0) {
+          setInvestors(cloudInvestors);
+        }
+      },
+      (err) => {
+        console.warn('Investors subscription error:', err);
+      }
+    );
+
+    return () => {
+      isSubscribed = false;
+      unsubTrades();
+      unsubInvestors();
+    };
+  }, []);
+
   // Save changes to safeStorage
   useEffect(() => {
     safeStorage.setItem('snl_app_lang', lang);
@@ -376,21 +471,36 @@ export function App() {
   };
 
   // Investor Handlers
-  const handleAddInvestor = (newInv: Omit<Investor, 'id' | 'created_at'>) => {
+  const handleAddInvestor = async (newInv: Omit<Investor, 'id' | 'created_at'>) => {
     const item: Investor = {
       ...newInv,
       id: 'inv-' + Date.now(),
       created_at: new Date().toISOString(),
     };
     setInvestors((prev) => [item, ...prev]);
+    try {
+      await syncSaveInvestor(item);
+    } catch (e) {
+      console.warn('Could not sync new investor to cloud:', e);
+    }
   };
 
-  const handleEditInvestor = (updatedInv: Investor) => {
+  const handleEditInvestor = async (updatedInv: Investor) => {
     setInvestors((prev) => prev.map((inv) => (inv.id === updatedInv.id ? updatedInv : inv)));
+    try {
+      await syncSaveInvestor(updatedInv);
+    } catch (e) {
+      console.warn('Could not sync updated investor to cloud:', e);
+    }
   };
 
-  const handleDeleteInvestor = (id: string) => {
+  const handleDeleteInvestor = async (id: string) => {
     setInvestors((prev) => prev.filter((inv) => inv.id !== id));
+    try {
+      await syncDeleteInvestor(id);
+    } catch (e) {
+      console.warn('Could not delete investor from cloud:', e);
+    }
   };
 
   const handleSimulateForInvestor = (inv: Investor) => {
@@ -421,21 +531,63 @@ export function App() {
   };
 
   // Trade Handlers
-  const handleAddTrade = (newTr: Omit<Trade, 'id' | 'created_at'>) => {
+  const handleAddTrade = async (newTr: Omit<Trade, 'id' | 'created_at'>) => {
     const item: Trade = {
       ...newTr,
       id: 'tr-' + Date.now(),
       created_at: new Date().toISOString(),
     };
     setTrades((prev) => [item, ...prev]);
+    try {
+      await syncSaveTrade(item);
+    } catch (e) {
+      console.warn('Could not sync new trade to cloud:', e);
+    }
   };
 
-  const handleEditTrade = (updatedTr: Trade) => {
+  const handleEditTrade = async (updatedTr: Trade) => {
     setTrades((prev) => prev.map((tr) => (tr.id === updatedTr.id ? updatedTr : tr)));
+    try {
+      await syncSaveTrade(updatedTr);
+    } catch (e) {
+      console.warn('Could not sync updated trade to cloud:', e);
+    }
   };
 
-  const handleDeleteTrade = (id: string) => {
+  const handleDeleteTrade = async (id: string) => {
     setTrades((prev) => prev.filter((tr) => tr.id !== id));
+    try {
+      await syncDeleteTrade(id);
+    } catch (e) {
+      console.warn('Could not delete trade from cloud:', e);
+    }
+  };
+
+  // Force Push All Local Data to Cloud
+  const handlePushAllToCloud = async () => {
+    setCloudSync((prev) => ({ ...prev, status: 'syncing' }));
+    try {
+      await pushAllToCloud({
+        trades,
+        investors,
+        params,
+        branding,
+        history,
+        recentSimulations: recentSessions,
+      });
+      setCloudSync({
+        status: 'connected',
+        lastSyncedAt: new Date(),
+        error: null,
+      });
+    } catch (err: any) {
+      setCloudSync((prev) => ({
+        ...prev,
+        status: 'error',
+        error: err?.message || 'Sync error',
+      }));
+      throw err;
+    }
   };
 
   // History Handlers
@@ -463,6 +615,8 @@ export function App() {
         isAdmin={isAdmin}
         onOpenAdmin={handleOpenAdmin}
         t={t}
+        cloudSync={cloudSync}
+        onForceSyncToCloud={handlePushAllToCloud}
       />
 
       {/* Main Container */}
@@ -549,6 +703,8 @@ export function App() {
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
         t={t}
+        cloudSync={cloudSync}
+        onPushAllToCloud={handlePushAllToCloud}
       />
 
       {/* Recent Simulation Snapshots Modal */}

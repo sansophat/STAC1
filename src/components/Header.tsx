@@ -1,7 +1,8 @@
 import React from 'react';
 import { Translations, Language, BrandingConfig } from '../types';
-import { Activity, Users, ClipboardList, History, Globe, Coins, Table, Shield, Lock } from 'lucide-react';
+import { Activity, Users, ClipboardList, History, Globe, Coins, Table, Shield, Lock, Cloud, CloudCheck, RefreshCw } from 'lucide-react';
 import { BrandedLogo } from './BrandedLogo';
+import { CloudSyncState } from '../lib/firebaseSync';
 
 interface HeaderProps {
   activeTab: 'simulator' | 'spreadsheet' | 'gold-calc' | 'investors' | 'trade-log' | 'history';
@@ -12,6 +13,8 @@ interface HeaderProps {
   isAdmin: boolean;
   onOpenAdmin: () => void;
   t: Translations;
+  cloudSync?: CloudSyncState;
+  onForceSyncToCloud?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   isAdmin,
   onOpenAdmin,
   t,
+  cloudSync,
+  onForceSyncToCloud,
 }) => {
   const navItems = [
     { id: 'simulator' as const, label: t.navSimulator, icon: Activity },
@@ -73,8 +78,42 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* Right Controls: Admin + Language Switcher */}
+        {/* Right Controls: Cloud Sync Status + Admin + Language Switcher */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Cloud Sync Status Indicator */}
+          {cloudSync && (
+            <button
+              onClick={onForceSyncToCloud}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                cloudSync.status === 'connected'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                  : cloudSync.status === 'syncing'
+                  ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30 animate-pulse'
+                  : cloudSync.status === 'connecting'
+                  ? 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                  : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+              }`}
+              title={
+                cloudSync.status === 'connected'
+                  ? 'Cloud Synced across Mobile & Desktop. Click to push manual sync.'
+                  : cloudSync.status === 'syncing'
+                  ? 'Syncing trades to cloud...'
+                  : 'Cloud Connecting. Click to push sync.'
+              }
+            >
+              {cloudSync.status === 'syncing' ? (
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+              ) : cloudSync.status === 'connected' ? (
+                <CloudCheck className="w-3.5 h-3.5 text-emerald-400" />
+              ) : (
+                <Cloud className="w-3.5 h-3.5 text-cyan-400" />
+              )}
+              <span className="hidden lg:inline text-[11px] font-mono">
+                {cloudSync.status === 'connected' ? 'Cloud Synced' : cloudSync.status === 'syncing' ? 'Syncing...' : 'Cloud Sync'}
+              </span>
+            </button>
+          )}
+
           {/* Admin Control Button */}
           <button
             onClick={onOpenAdmin}
