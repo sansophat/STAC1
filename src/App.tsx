@@ -35,6 +35,7 @@ import { HistoryView } from './components/HistoryView';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminBrandingModal } from './components/AdminBrandingModal';
 import { RecentSimulationsModal } from './components/RecentSimulationsModal';
+import { CloudSyncModal } from './components/CloudSyncModal';
 import {
   CloudSyncState,
   subscribeToTrades,
@@ -44,7 +45,9 @@ import {
   syncSaveInvestor,
   syncDeleteInvestor,
   pushAllToCloud,
-  checkCloudHasData,
+  fetchCloudData,
+  DEMO_TRADE_IDS,
+  DEMO_INVESTOR_IDS,
 } from './lib/firebaseSync';
 
 const INITIAL_INVESTORS: Investor[] = [
@@ -167,6 +170,7 @@ export function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
+  const [isCloudSyncModalOpen, setIsCloudSyncModalOpen] = useState(false);
 
   const [branding, setBranding] = useState<BrandingConfig>(() => {
     return getStoredBranding();
@@ -226,39 +230,13 @@ export function App() {
     status: 'connecting',
     lastSyncedAt: null,
     error: null,
+    cloudTradeCount: 0,
+    cloudInvestorCount: 0,
   });
 
-  // 1. Subscribe to real-time updates from Firebase Firestore
+  // 1. Subscribe to real-time updates from Firebase Firestore (No auto-seeding of demo data!)
   useEffect(() => {
     let isSubscribed = true;
-
-    // Check if cloud already has trades; if empty, seed local data so phones don't start empty!
-    checkCloudHasData()
-      .then(async (hasData) => {
-        if (!hasData && isSubscribed) {
-          // Push current state to seed cloud database
-          try {
-            await pushAllToCloud({
-              trades,
-              investors,
-              params,
-              branding,
-              history,
-              recentSimulations: recentSessions,
-            });
-            if (isSubscribed) {
-              setCloudSync({
-                status: 'connected',
-                lastSyncedAt: new Date(),
-                error: null,
-              });
-            }
-          } catch (seedErr) {
-            console.warn('Initial cloud seed attempt:', seedErr);
-          }
-        }
-      })
-      .catch((err) => console.warn('checkCloudHasData err:', err));
 
     // Listen to real-time Trades from Firestore
     const unsubTrades = subscribeToTrades(
@@ -272,6 +250,7 @@ export function App() {
           status: 'connected',
           lastSyncedAt: new Date(),
           error: null,
+          cloudTradeCount: cloudTrades.length,
         }));
       },
       (err) => {
@@ -292,6 +271,10 @@ export function App() {
         if (cloudInvestors.length > 0) {
           setInvestors(cloudInvestors);
         }
+        setCloudSync((prev) => ({
+          ...prev,
+          cloudInvestorCount: cloudInvestors.length,
+        }));
       },
       (err) => {
         console.warn('Investors subscription error:', err);
@@ -579,6 +562,8 @@ export function App() {
         status: 'connected',
         lastSyncedAt: new Date(),
         error: null,
+        cloudTradeCount: trades.length,
+        cloudInvestorCount: investors.length,
       });
     } catch (err: any) {
       setCloudSync((prev) => ({
@@ -588,6 +573,40 @@ export function App() {
       }));
       throw err;
     }
+  };
+
+  // Pull All Data from Cloud
+  const handlePullFromCloud = async () => {
+    setCloudSync((prev) => ({ ...prev, status: 'syncing' }));
+    try {
+      const data = await fetchCloudData();
+      if (data.trades) {
+        setTrades(data.trades);
+      }
+      if (data.investors) {
+        setInvestors(data.investors);
+      }
+      setCloudSync({
+        status: 'connected',
+        lastSyncedAt: new Date(),
+        error: null,
+        cloudTradeCount: data.trades.length,
+        cloudInvestorCount: data.investors.length,
+      });
+    } catch (err: any) {
+      setCloudSync((prev) => ({
+        ...prev,
+        status: 'error',
+        error: err?.message || 'Pull error',
+      }));
+      throw err;
+    }
+  };
+
+  // Purge sample demo data
+  const handlePurgeDemoData = () => {
+    setTrades((prev) => prev.filter((t) => !DEMO_TRADE_IDS.includes(t.id)));
+    setInvestors((prev) => prev.filter((i) => !DEMO_INVESTOR_IDS.includes(i.id)));
   };
 
   // History Handlers
@@ -616,6 +635,7 @@ export function App() {
         onOpenAdmin={handleOpenAdmin}
         t={t}
         cloudSync={cloudSync}
+        onOpenCloudSync={() => setIsCloudSyncModalOpen(true)}
         onForceSyncToCloud={handlePushAllToCloud}
       />
 
@@ -671,6 +691,8 @@ export function App() {
             onEditTrade={handleEditTrade}
             onDeleteTrade={handleDeleteTrade}
             t={t}
+            onOpenCloudSync={() => setIsCloudSyncModalOpen(true)}
+            onPurgeDemoData={handlePurgeDemoData}
           />
         )}
 
@@ -715,6 +737,21 @@ export function App() {
         onRestoreSession={handleRestoreSession}
         onClearSessions={handleClearRecentSessions}
         onDeleteSession={handleDeleteRecentSession}
+        t={t}
+      />
+
+      {/* Cloud Sync Center Modal */}
+      <CloudSyncModal
+        isOpen={isCloudSyncModalOpen}
+        onClose={() => setIsCloudSyncModalOpen(false)}
+        trades={trades}
+        investors={investors}
+        cloudSync={cloudSync}
+        onPushAllToCloud={handlePushAllToCloud}
+        onPullFromCloud={handlePullFromCloud}
+        onPurgeDemoData={handlePurgeDemoData}
+        onExportBackup={handleExportBackup}
+        onImportBackup={handleImportBackup}
         t={t}
       />
 

@@ -14,6 +14,7 @@ interface HeaderProps {
   onOpenAdmin: () => void;
   t: Translations;
   cloudSync?: CloudSyncState;
+  onOpenCloudSync?: () => void;
   onForceSyncToCloud?: () => void;
 }
 
@@ -27,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   t,
   cloudSync,
+  onOpenCloudSync,
   onForceSyncToCloud,
 }) => {
   const navItems = [
@@ -83,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Cloud Sync Status Indicator */}
           {cloudSync && (
             <button
-              onClick={onForceSyncToCloud}
+              onClick={onOpenCloudSync || onForceSyncToCloud}
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
                 cloudSync.status === 'connected'
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'

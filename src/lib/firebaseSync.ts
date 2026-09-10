@@ -28,10 +28,15 @@ export const TRADES_COLLECTION = 'trades';
 export const INVESTORS_COLLECTION = 'investors';
 export const APP_SETTINGS_COLLECTION = 'app_settings';
 
+export const DEMO_TRADE_IDS = ['tr-1', 'tr-2', 'tr-3'];
+export const DEMO_INVESTOR_IDS = ['inv-1', 'inv-2', 'inv-3'];
+
 export interface CloudSyncState {
   status: 'connecting' | 'connected' | 'offline' | 'error' | 'syncing';
   lastSyncedAt: Date | null;
   error?: string | null;
+  cloudTradeCount?: number;
+  cloudInvestorCount?: number;
 }
 
 // Subscribe to real-time updates for trades
@@ -129,8 +134,51 @@ export async function syncDeleteInvestor(investorId: string): Promise<void> {
   }
 }
 
-// Batch upload all local trades & investors to Firestore (Seed or Force Push)
-export async function pushAllToCloud(payload: {
+// Fetch current cloud counts and contents directly
+export async function fetchCloudData(): Promise<{
+  trades: Trade[];
+  investors: Investor[];
+  settings?: any;
+}> {
+  const tradesSnap = await getDocs(collection(db, TRADES_COLLECTION));
+  const trades: Trade[] = [];
+  tradesSnap.forEach((d) => trades.push(d.data() as Trade));
+
+  const invSnap = await getDocs(collection(db, INVESTORS_COLLECTION));
+  const investors: Investor[] = [];
+  invSnap.forEach((d) => investors.push(d.data() as Investor));
+
+  return { trades, investors };
+}
+
+// Clean all demo records from cloud
+export async function purgeCloudDemoRecords(): Promise<{ tradesDeleted: number; investorsDeleted: number }> {
+  let tradesDeleted = 0;
+  let investorsDeleted = 0;
+
+  for (const id of DEMO_TRADE_IDS) {
+    try {
+      await deleteDoc(doc(db, TRADES_COLLECTION, id));
+      tradesDeleted++;
+    } catch {
+      // ignore
+    }
+  }
+
+  for (const id of DEMO_INVESTOR_IDS) {
+    try {
+      await deleteDoc(doc(db, INVESTORS_COLLECTION, id));
+      investorsDeleted++;
+    } catch {
+      // ignore
+    }
+  }
+
+  return { tradesDeleted, investorsDeleted };
+}
+
+// Completely upload current local state to cloud and purge any stale/demo docs
+export async function replaceCloudWithLocalData(payload: {
   trades: Trade[];
   investors: Investor[];
   params?: SimulationParams;
@@ -138,23 +186,70 @@ export async function pushAllToCloud(payload: {
   history?: SimulationResult[];
   recentSimulations?: SimulatorSessionMemory[];
 }): Promise<void> {
-  const batch = writeBatch(db);
+  // 1. Fetch current cloud docs to detect what needs deletion
+  const [currentTradesSnap, currentInvSnap] = await Promise.all([
+    getDocs(collection(db, TRADES_COLLECTION)),
+    getDocs(collection(db, INVESTORS_COLLECTION)),
+  ]);
 
-  // Sync trades
-  payload.trades.forEach((tr) => {
-    const ref = doc(db, TRADES_COLLECTION, tr.id);
-    batch.set(ref, tr, { merge: true });
+  const targetTradeIds = new Set(payload.trades.map((t) => t.id));
+  const targetInvIds = new Set(payload.investors.map((i) => i.id));
+
+  // Delete docs in cloud that are not in target
+  const deletePromises: Promise<void>[] = [];
+
+  currentTradesSnap.forEach((docSnap) => {
+    if (!targetTradeIds.has(docSnap.id)) {
+      deletePromises.push(deleteDoc(doc(db, TRADES_COLLECTION, docSnap.id)));
+    }
   });
 
-  // Sync investors
-  payload.investors.forEach((inv) => {
-    const ref = doc(db, INVESTORS_COLLECTION, inv.id);
-    batch.set(ref, inv, { merge: true });
+  currentInvSnap.forEach((docSnap) => {
+    if (!targetInvIds.has(docSnap.id)) {
+      deletePromises.push(deleteDoc(doc(db, INVESTORS_COLLECTION, docSnap.id)));
+    }
   });
 
-  // Sync app settings / metadata
+  // Explicitly purge demo IDs too
+  for (const demoId of DEMO_TRADE_IDS) {
+    if (!targetTradeIds.has(demoId)) {
+      deletePromises.push(deleteDoc(doc(db, TRADES_COLLECTION, demoId)));
+    }
+  }
+  for (const demoId of DEMO_INVESTOR_IDS) {
+    if (!targetInvIds.has(demoId)) {
+      deletePromises.push(deleteDoc(doc(db, INVESTORS_COLLECTION, demoId)));
+    }
+  }
+
+  await Promise.all(deletePromises);
+
+  // 2. Batch write all target trades & investors
+  // Firestore batch limit is 500 ops; chunk if needed
+  const chunkSize = 400;
+  for (let i = 0; i < payload.trades.length; i += chunkSize) {
+    const chunk = payload.trades.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    chunk.forEach((tr) => {
+      const ref = doc(db, TRADES_COLLECTION, tr.id);
+      batch.set(ref, tr);
+    });
+    await batch.commit();
+  }
+
+  for (let i = 0; i < payload.investors.length; i += chunkSize) {
+    const chunk = payload.investors.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    chunk.forEach((inv) => {
+      const ref = doc(db, INVESTORS_COLLECTION, inv.id);
+      batch.set(ref, inv);
+    });
+    await batch.commit();
+  }
+
+  // 3. Save global settings
   const settingsRef = doc(db, APP_SETTINGS_COLLECTION, 'global_state');
-  batch.set(
+  await setDoc(
     settingsRef,
     {
       updated_at: new Date().toISOString(),
@@ -165,18 +260,16 @@ export async function pushAllToCloud(payload: {
     },
     { merge: true }
   );
-
-  await batch.commit();
 }
 
-// Check if cloud already has data
-export async function checkCloudHasData(): Promise<boolean> {
-  try {
-    const colRef = collection(db, TRADES_COLLECTION);
-    const snap = await getDocs(colRef);
-    return !snap.empty;
-  } catch (e) {
-    console.warn('checkCloudHasData check failed:', e);
-    return false;
-  }
+// Batch upload all local trades & investors to Firestore
+export async function pushAllToCloud(payload: {
+  trades: Trade[];
+  investors: Investor[];
+  params?: SimulationParams;
+  branding?: BrandingConfig;
+  history?: SimulationResult[];
+  recentSimulations?: SimulatorSessionMemory[];
+}): Promise<void> {
+  return replaceCloudWithLocalData(payload);
 }

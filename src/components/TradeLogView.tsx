@@ -34,7 +34,9 @@ import {
   Trophy,
   BarChart3,
   CheckCheck,
+  Cloud,
 } from 'lucide-react';
+import { DEMO_TRADE_IDS } from '../lib/firebaseSync';
 
 interface TradeLogViewProps {
   trades: Trade[];
@@ -44,6 +46,8 @@ interface TradeLogViewProps {
   onDeleteTrade: (id: string) => void;
   t: Translations;
   initialSelectedAccount?: string;
+  onOpenCloudSync?: () => void;
+  onPurgeDemoData?: () => void;
 }
 
 const getTodayDateStr = (): string => {
@@ -100,6 +104,8 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
   onDeleteTrade,
   t,
   initialSelectedAccount,
+  onOpenCloudSync,
+  onPurgeDemoData,
 }) => {
   const [selectedAccount, setSelectedAccount] = useState<string>(() => {
     if (initialSelectedAccount && initialSelectedAccount !== 'General Account') {
@@ -1114,6 +1120,18 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Cloud Sync Button */}
+          {onOpenCloudSync && (
+            <button
+              onClick={onOpenCloudSync}
+              className="flex items-center gap-1.5 bg-[#111726] hover:bg-[#1a233a] border border-emerald-500/30 text-emerald-300 hover:text-emerald-200 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium shadow-xs"
+              title="Open Cloud Sync Center to upload/sync your active trades"
+            >
+              <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Cloud Sync</span>
+            </button>
+          )}
+
           {/* Cent ↔ USD Quick Converter Modal Launcher */}
           <button
             onClick={() => setConverterModalOpen(true)}
@@ -1148,6 +1166,36 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Demo Records Notice (if any demo trades exist) */}
+      {trades.some((tr) => DEMO_TRADE_IDS.includes(tr.id)) && (
+        <div className="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-amber-200 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-amber-400">Notice:</span>
+            <span>Demo sample trades are currently in your list (Sokha Meng, Dara Chan, Vannak Kem).</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {onPurgeDemoData && (
+              <button
+                type="button"
+                onClick={onPurgeDemoData}
+                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                Clean Out Demo Data
+              </button>
+            )}
+            {onOpenCloudSync && (
+              <button
+                type="button"
+                onClick={onOpenCloudSync}
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                Sync My Data to Cloud
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Account Selector Bar with Live Equity Indicators and Currency Badges */}
       <div className="bg-[#0c111e]/90 p-3 rounded-2xl border border-slate-800/80 shadow-md space-y-2">
