@@ -29,6 +29,11 @@ import {
   Coins,
   ArrowRightLeft,
   Calculator,
+  CalendarDays,
+  Flame,
+  Trophy,
+  BarChart3,
+  CheckCheck,
 } from 'lucide-react';
 
 interface TradeLogViewProps {
@@ -122,6 +127,27 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
   });
   const [currencyFilter, setCurrencyFilter] = useState<'all' | 'USD' | 'USC'>('all');
   const [currencySwitchModalTrade, setCurrencySwitchModalTrade] = useState<Trade | null>(null);
+
+  // View Mode: 'executions' (individual trade log) vs 'daily' (day-by-day aggregated grouping)
+  const [viewMode, setViewMode] = useState<'executions' | 'daily'>('executions');
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+
+  const toggleDayExpanded = (dateStr: string) => {
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) next.delete(dateStr);
+      else next.add(dateStr);
+      return next;
+    });
+  };
+
+  const expandAllDays = (allDates: string[]) => {
+    setExpandedDays(new Set(allDates));
+  };
+
+  const collapseAllDays = () => {
+    setExpandedDays(new Set());
+  };
 
   const toggleDateDisplayMode = () => {
     setDateDisplayMode((prev) => {
@@ -427,6 +453,196 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
       };
     }
   }, [selectedAccount, accountMetricsMap, trades, displayTrades, investors]);
+
+  // Trading Days Consistency & Multi-Execution Aggregation Analysis
+  const tradingDaysAnalysis = useMemo(() => {
+    const tradesToAnalyze = filteredTrades;
+
+    // Group trades by trade_date
+    const map = new Map<string, Trade[]>();
+    tradesToAnalyze.forEach((tr) => {
+      const list = map.get(tr.trade_date) || [];
+      list.push(tr);
+      map.set(tr.trade_date, list);
+    });
+
+    // Sort dates descending (newest first)
+    const sortedDates = Array.from(map.keys()).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    );
+
+    let totalWinDays = 0;
+    let totalLossDays = 0;
+    let totalBreakevenDays = 0;
+    let totalDayProfitUSD = 0;
+    let maxDayProfitUSD = -Infinity;
+    let bestDayDate: string | null = null;
+    let maxDayLossUSD = Infinity;
+    let worstDayDate: string | null = null;
+
+    const daySummaries = sortedDates.map((dateStr) => {
+      const dayTrades = map.get(dateStr)!;
+      // Sort chronological (oldest to newest execution within that day)
+      const chrono = [...dayTrades].sort((a, b) => {
+        return (
+          (new Date(a.created_at || '').getTime() || 0) -
+          (new Date(b.created_at || '').getTime() || 0)
+        );
+      });
+
+      const oldest = chrono[0];
+      const newest = chrono[chrono.length - 1];
+      const startEquity = oldest ? oldest.start_equity : 0;
+      const endEquity = newest ? newest.end_equity : 0;
+
+      let dayProfitNative = 0;
+      let dayProfitUSD = 0;
+      let dayWithdrawnNative = 0;
+      let dayWithdrawnUSD = 0;
+      let dayReinvestNative = 0;
+      let dayReinvestUSD = 0;
+      let totalLot = 0;
+
+      dayTrades.forEach((tr) => {
+        const curr = tr.currency || getInvestorCurrency(tr.investor_name);
+        const factor = curr === 'USC' ? 0.01 : 1;
+
+        dayProfitNative += tr.profit_amount || 0;
+        dayWithdrawnNative += tr.withdraw || 0;
+        dayReinvestNative += tr.reinvest || 0;
+        totalLot += tr.lot_size || 0;
+
+        dayProfitUSD += (tr.profit_amount || 0) * factor;
+        dayWithdrawnUSD += (tr.withdraw || 0) * factor;
+        dayReinvestUSD += (tr.reinvest || 0) * factor;
+      });
+
+      const dayNetGainPct = startEquity > 0 ? ((endEquity - startEquity) / startEquity) * 100 : 0;
+      const isWinDay = dayProfitUSD > 0.005;
+      const isLossDay = dayProfitUSD < -0.005;
+      const isBreakeven = !isWinDay && !isLossDay;
+
+      if (isWinDay) totalWinDays++;
+      else if (isLossDay) totalLossDays++;
+      else totalBreakevenDays++;
+
+      totalDayProfitUSD += dayProfitUSD;
+
+      if (dayProfitUSD > maxDayProfitUSD) {
+        maxDayProfitUSD = dayProfitUSD;
+        bestDayDate = dateStr;
+      }
+      if (dayProfitUSD < maxDayLossUSD) {
+        maxDayLossUSD = dayProfitUSD;
+        worstDayDate = dateStr;
+      }
+
+      const dayInfo = getDayOfWeekInfo(dateStr);
+      const dayCurrency: 'USD' | 'USC' = oldest?.currency || getInvestorCurrency(oldest?.investor_name);
+
+      return {
+        dateStr,
+        shortDay: dayInfo.shortDay,
+        fullDay: dayInfo.fullDay,
+        isWeekend: dayInfo.isWeekend,
+        tradeCount: dayTrades.length,
+        trades: chrono,
+        startEquity,
+        endEquity,
+        dayProfitNative,
+        dayProfitUSD,
+        dayWithdrawnNative,
+        dayWithdrawnUSD,
+        dayReinvestNative,
+        dayReinvestUSD,
+        dayNetGainPct,
+        totalLot,
+        currency: dayCurrency,
+        isWinDay,
+        isLossDay,
+        isBreakeven,
+      };
+    });
+
+    const totalDaysTraded = daySummaries.length;
+    const dailyWinRate = totalDaysTraded > 0 ? (totalWinDays / totalDaysTraded) * 100 : 0;
+    const avgProfitPerDayUSD = totalDaysTraded > 0 ? totalDayProfitUSD / totalDaysTraded : 0;
+    const avgTradesPerDay = totalDaysTraded > 0 ? tradesToAnalyze.length / totalDaysTraded : 0;
+
+    // Consecutive winning streak ending at latest day
+    let currentWinStreak = 0;
+    for (const ds of daySummaries) {
+      if (ds.isWinDay) {
+        currentWinStreak++;
+      } else {
+        break;
+      }
+    }
+
+    // Longest win streak across all historical days
+    const chronoSummaries = [...daySummaries].reverse();
+    let maxWinStreak = 0;
+    let tempCounter = 0;
+    chronoSummaries.forEach((ds) => {
+      if (ds.isWinDay) {
+        tempCounter++;
+        if (tempCounter > maxWinStreak) maxWinStreak = tempCounter;
+      } else {
+        tempCounter = 0;
+      }
+    });
+
+    // Calendar span
+    let firstTradedDate: string | null = null;
+    let lastTradedDate: string | null = null;
+    let calendarDaysSpan = 0;
+    if (totalDaysTraded > 0) {
+      lastTradedDate = daySummaries[0].dateStr;
+      firstTradedDate = daySummaries[daySummaries.length - 1].dateStr;
+      const diffMs = new Date(lastTradedDate).getTime() - new Date(firstTradedDate).getTime();
+      calendarDaysSpan = Math.max(1, Math.round(diffMs / 86400000) + 1);
+    }
+
+    const allTimeUniqueDays = new Set(displayTrades.map((t) => t.trade_date)).size;
+
+    return {
+      daySummaries,
+      totalDaysTraded,
+      allTimeUniqueDays,
+      totalWinDays,
+      totalLossDays,
+      totalBreakevenDays,
+      dailyWinRate,
+      avgProfitPerDayUSD,
+      avgTradesPerDay,
+      currentWinStreak,
+      maxWinStreak,
+      bestDay: bestDayDate ? { date: bestDayDate, profitUSD: maxDayProfitUSD } : null,
+      worstDay: worstDayDate && maxDayLossUSD < 0 ? { date: worstDayDate, lossUSD: maxDayLossUSD } : null,
+      firstTradedDate,
+      lastTradedDate,
+      calendarDaysSpan,
+    };
+  }, [filteredTrades, displayTrades, investors]);
+
+  // Overall execution statistics
+  const executionMetrics = useMemo(() => {
+    const count = filteredTrades.length;
+    const wins = filteredTrades.filter((t) => (t.profit_amount || 0) > 0).length;
+    const losses = filteredTrades.filter((t) => (t.profit_amount || 0) < 0).length;
+    const breakeven = count - wins - losses;
+    const winRate = count > 0 ? (wins / count) * 100 : 0;
+    const avgLot =
+      count > 0 ? filteredTrades.reduce((sum, t) => sum + (t.lot_size || 0), 0) / count : 0;
+    return {
+      count,
+      wins,
+      losses,
+      breakeven,
+      winRate,
+      avgLot,
+    };
+  }, [filteredTrades]);
 
   // Open modal with smart initial balance pre-filled from latest trade
   const openAddModal = (defaultInvestorName?: string) => {
@@ -811,6 +1027,66 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  // CSV Export for Day-by-Day performance grouping
+  const handleExportDailyCSV = () => {
+    const headers = [
+      'Trade Date',
+      'Day of Week (ddd)',
+      'Day of Week (dddd)',
+      'Weekend',
+      'Trade Executions',
+      'Account / Group',
+      'Currency',
+      'Opening Balance',
+      'Opening Balance (USD)',
+      'Closing Balance',
+      'Closing Balance (USD)',
+      'Net Day Profit',
+      'Net Day Profit (USD)',
+      'Day Gain (%)',
+      'Total Lot Volume',
+      'Day Withdrawn',
+      'Day Reinvest',
+      'Day Result Status',
+    ];
+
+    const rows = tradingDaysAnalysis.daySummaries.map((d) => {
+      const factorToUSD = d.currency === 'USC' ? 0.01 : 1;
+      const status = d.isWinDay ? 'Win Day' : d.isLossDay ? 'Loss Day' : 'Breakeven';
+      return [
+        d.dateStr,
+        d.shortDay,
+        d.fullDay,
+        d.isWeekend ? 'Yes' : 'No',
+        d.tradeCount,
+        `"${(selectedAccount === 'all' ? 'All Accounts (Portfolio)' : selectedAccount).replace(/"/g, '""')}"`,
+        d.currency,
+        d.startEquity.toFixed(2),
+        (d.startEquity * factorToUSD).toFixed(2),
+        d.endEquity.toFixed(2),
+        (d.endEquity * factorToUSD).toFixed(2),
+        d.dayProfitNative.toFixed(2),
+        d.dayProfitUSD.toFixed(2),
+        `${d.dayNetGainPct.toFixed(2)}%`,
+        d.totalLot.toFixed(4),
+        d.dayWithdrawnNative.toFixed(2),
+        d.dayReinvestNative.toFixed(2),
+        status,
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `snl_daily_summary_${
+      selectedAccount === 'all' ? 'portfolio' : selectedAccount.toLowerCase().replace(/\s+/g, '_')
+    }_${timeframe}_${todayStr}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const currentTier = Math.max(
     1,
     Math.floor(
@@ -850,12 +1126,16 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
 
           {trades.length > 0 && (
             <button
-              onClick={handleExportCSV}
+              onClick={viewMode === 'daily' ? handleExportDailyCSV : handleExportCSV}
               className="flex items-center gap-1.5 bg-[#111726] hover:bg-[#1a233a] border border-slate-800 text-slate-300 hover:text-cyan-300 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium"
-              title="Export Current Filtered View to CSV"
+              title={
+                viewMode === 'daily'
+                  ? 'Export Day-by-Day Aggregated Performance Summary to CSV'
+                  : 'Export Filtered Trade Executions to CSV'
+              }
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
+              <span>{viewMode === 'daily' ? 'Export Daily CSV' : 'Export CSV'}</span>
             </button>
           )}
 
@@ -964,14 +1244,14 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
       </div>
 
       {/* Analytics Cards Grid (Dual Currency & Multi-Account Aware) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* 1. Live Current Equity Card */}
-        <div className="rounded-xl border border-cyan-500/40 bg-gradient-to-br from-[#0c1424] to-[#0c111e] p-4 shadow-lg shadow-cyan-950/30 relative overflow-hidden">
+        <div className="rounded-xl border border-cyan-500/40 bg-gradient-to-br from-[#0c1424] to-[#0c111e] p-3.5 shadow-lg shadow-cyan-950/30 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none" />
           <div className="flex items-center justify-between mb-1.5 text-xs">
             <span className="text-cyan-300 flex items-center gap-1.5 font-semibold">
-              <Layers className="w-4 h-4 text-cyan-400" />
-              <span>
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="truncate">
                 {viewMetrics.isPortfolioAggregate ? 'Portfolio Equity' : 'Current Equity'}
               </span>
             </span>
@@ -983,13 +1263,13 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
               }`}
             >
               {viewMetrics.netGrowthPct >= 0 ? '+' : ''}
-              {viewMetrics.netGrowthPct.toFixed(2)}%
+              {viewMetrics.netGrowthPct.toFixed(1)}%
             </span>
           </div>
-          <div className="font-heading font-extrabold text-2xl text-cyan-300 font-mono tracking-tight">
+          <div className="font-heading font-extrabold text-xl lg:text-2xl text-cyan-300 font-mono tracking-tight">
             {!viewMetrics.isPortfolioAggregate && viewMetrics.accountCurrency === 'USC' ? (
               <span>
-                {(viewMetrics.nativeEquity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                {(viewMetrics.nativeEquity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}{' '}
                 <span className="text-xs font-bold text-purple-400 font-sans">USC</span>
               </span>
             ) : (
@@ -999,16 +1279,16 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
           <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
             {!viewMetrics.isPortfolioAggregate && viewMetrics.accountCurrency === 'USC' ? (
               <>
-                <span>≈ ${(viewMetrics.currentEquityUSD ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} USD</span>
-                <span className="text-purple-300/80 font-mono font-semibold">Cent Account</span>
+                <span className="truncate">≈ ${(viewMetrics.currentEquityUSD ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} USD</span>
+                <span className="text-purple-300/80 font-mono font-semibold shrink-0">Cent</span>
               </>
             ) : (
               <>
-                <span>Base: ${(viewMetrics.initialCapitalUSD ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                <span className="text-cyan-400/80 font-mono">
+                <span className="truncate">Base: ${(viewMetrics.initialCapitalUSD ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}</span>
+                <span className="text-cyan-400/80 font-mono shrink-0">
                   Net: {(viewMetrics.currentEquityUSD ?? 0) - (viewMetrics.initialCapitalUSD ?? 0) >= 0 ? '+' : ''}$
                   {((viewMetrics.currentEquityUSD ?? 0) - (viewMetrics.initialCapitalUSD ?? 0)).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
+                    minimumFractionDigits: 0,
                   })}
                 </span>
               </>
@@ -1018,7 +1298,7 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
 
         {/* 2. TODAY'S PROFIT CARD */}
         <div
-          className={`rounded-xl border p-4 shadow-md transition-all relative overflow-hidden ${
+          className={`rounded-xl border p-3.5 shadow-md transition-all relative overflow-hidden ${
             todayMetrics.profitUSD > 0
               ? 'border-emerald-500/40 bg-gradient-to-br from-[#0c1c1b] to-[#0c111e]'
               : todayMetrics.profitUSD < 0
@@ -1028,23 +1308,23 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
         >
           <div className="flex items-center justify-between mb-1.5 text-xs">
             <span className="flex items-center gap-1.5 font-semibold text-slate-300">
-              <Calendar className="w-4 h-4 text-emerald-400" />
+              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
               <span>{t.todayProfit}</span>
             </span>
             <button
               onClick={() => setTimeframe(timeframe === 'today' ? 'all' : 'today')}
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+              className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition-all cursor-pointer ${
                 timeframe === 'today'
                   ? 'bg-emerald-500 text-slate-950'
                   : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
               }`}
               title="Click to toggle filter for Today's trades only"
             >
-              {timeframe === 'today' ? 'Filtering Today' : 'Today'}
+              {timeframe === 'today' ? 'Filtering' : 'Filter'}
             </button>
           </div>
           <div
-            className={`font-heading font-extrabold text-2xl font-mono tracking-tight ${
+            className={`font-heading font-extrabold text-xl lg:text-2xl font-mono tracking-tight ${
               todayMetrics.profitUSD > 0
                 ? 'text-emerald-400'
                 : todayMetrics.profitUSD < 0
@@ -1057,66 +1337,215 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
           </div>
           <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
             <span>
-              {todayMetrics.count} trade{todayMetrics.count === 1 ? '' : 's'} today
+              {todayMetrics.count} trade{todayMetrics.count === 1 ? '' : 's'}
             </span>
             {todayMetrics.count > 0 ? (
               <span className="font-mono text-emerald-400/90 font-semibold">
                 {todayMetrics.dayGainPct >= 0 ? '+' : ''}
-                {todayMetrics.dayGainPct.toFixed(2)}% day
+                {todayMetrics.dayGainPct.toFixed(1)}%
               </span>
             ) : (
-              <span className="text-slate-500">Ready for trades</span>
+              <span className="text-slate-500">None yet</span>
             )}
           </div>
         </div>
 
         {/* 3. All-Time Real Profit Card */}
-        <div className="rounded-xl border border-slate-800 bg-[#0c111e]/90 p-4 shadow-md">
-          <div className="flex items-center gap-2 mb-1.5 text-xs text-slate-400">
-            <DollarSign className="w-4 h-4 text-emerald-400" />
-            <span>{t.totalRealProfit}</span>
+        <div className="rounded-xl border border-slate-800 bg-[#0c111e]/90 p-3.5 shadow-md">
+          <div className="flex items-center gap-1.5 mb-1.5 text-xs text-slate-400">
+            <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="truncate">{t.totalRealProfit}</span>
           </div>
           <div
-            className={`font-heading font-bold text-2xl font-mono ${
+            className={`font-heading font-extrabold text-xl lg:text-2xl font-mono tracking-tight ${
               (viewMetrics.totalProfitUSD ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
             }`}
           >
             {(viewMetrics.totalProfitUSD ?? 0) >= 0 ? '+' : ''}$
             {(viewMetrics.totalProfitUSD ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">
-            Withdrawn: ${(viewMetrics.totalWithdrawnUSD ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </div>
-        </div>
-
-        {/* 4. Average Profit % Card */}
-        <div className="rounded-xl border border-slate-800 bg-[#0c111e]/90 p-4 shadow-md">
-          <div className="flex items-center gap-2 mb-1.5 text-xs text-slate-400">
-            <TrendingUp className="w-4 h-4 text-purple-400" />
-            <span>{t.avgProfitPct}</span>
-          </div>
-          <div className="font-heading font-bold text-2xl text-purple-300 font-mono">
-            {viewMetrics.avgProfitPct.toFixed(2)}%
-          </div>
-          <div className="text-[10px] text-slate-400 mt-1">
-            Across {viewMetrics.tradeCount} executions
-          </div>
-        </div>
-
-        {/* 5. Total Trades Card */}
-        <div className="rounded-xl border border-slate-800 bg-[#0c111e]/90 p-4 shadow-md col-span-2 md:col-span-1">
-          <div className="flex items-center gap-2 mb-1.5 text-xs text-slate-400">
-            <Activity className="w-4 h-4 text-amber-400" />
-            <span>Total Executions</span>
-          </div>
-          <div className="font-heading font-bold text-2xl text-amber-300 font-mono">
-            {viewMetrics.tradeCount}
-          </div>
           <div className="text-[10px] text-slate-400 mt-1 truncate">
-            {selectedAccount === 'all' ? 'All Accounts' : selectedAccount}
+            Withdrawn: ${(viewMetrics.totalWithdrawnUSD ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
+          </div>
+        </div>
+
+        {/* 4. DAYS TRADED & WIN RATE CARD (Key Feature Requested by User) */}
+        <div className="rounded-xl border border-cyan-500/30 bg-[#0c111e]/90 p-3.5 shadow-md relative overflow-hidden">
+          <div className="flex items-center justify-between mb-1.5 text-xs">
+            <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+              <CalendarDays className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Days Traded</span>
+            </span>
+            <span
+              className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                tradingDaysAnalysis.dailyWinRate >= 60
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : tradingDaysAnalysis.dailyWinRate >= 50
+                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
+                  : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+              }`}
+              title={`${tradingDaysAnalysis.totalWinDays} profitable days out of ${tradingDaysAnalysis.totalDaysTraded} active trading days`}
+            >
+              {tradingDaysAnalysis.dailyWinRate.toFixed(0)}% Win Days
+            </span>
+          </div>
+          <div className="font-heading font-extrabold text-xl lg:text-2xl text-cyan-300 font-mono tracking-tight flex items-baseline gap-1.5">
+            <span>{tradingDaysAnalysis.totalDaysTraded}</span>
+            <span className="text-xs font-sans font-normal text-slate-400">
+              active day{tradingDaysAnalysis.totalDaysTraded === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <span className="text-emerald-400 font-bold">{tradingDaysAnalysis.totalWinDays}W</span>
+              <span>•</span>
+              <span className="text-rose-400 font-bold">{tradingDaysAnalysis.totalLossDays}L</span>
+              {tradingDaysAnalysis.totalBreakevenDays > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="text-slate-400">{tradingDaysAnalysis.totalBreakevenDays}BE</span>
+                </>
+              )}
+            </span>
+            {tradingDaysAnalysis.currentWinStreak > 1 ? (
+              <span className="text-amber-400 font-bold flex items-center gap-0.5">
+                <Flame className="w-3 h-3 text-amber-400 fill-amber-400" />
+                <span>{tradingDaysAnalysis.currentWinStreak}d Streak</span>
+              </span>
+            ) : (
+              <span className="text-slate-500 font-mono">
+                {tradingDaysAnalysis.allTimeUniqueDays} all-time
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 5. AVERAGE DAILY PROFIT CARD */}
+        <div className="rounded-xl border border-slate-800 bg-[#0c111e]/90 p-3.5 shadow-md">
+          <div className="flex items-center justify-between mb-1.5 text-xs text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
+              <span className="truncate">Avg Daily Profit</span>
+            </span>
+            {tradingDaysAnalysis.totalDaysTraded > 0 && (
+              <span className="text-[9px] font-mono text-purple-300">
+                ~{tradingDaysAnalysis.avgTradesPerDay.toFixed(1)}/d
+              </span>
+            )}
+          </div>
+          <div
+            className={`font-heading font-extrabold text-xl lg:text-2xl font-mono tracking-tight ${
+              tradingDaysAnalysis.avgProfitPerDayUSD >= 0 ? 'text-purple-300' : 'text-rose-400'
+            }`}
+          >
+            {tradingDaysAnalysis.avgProfitPerDayUSD >= 0 ? '+' : ''}$
+            {tradingDaysAnalysis.avgProfitPerDayUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+            <span>Per active day</span>
+            <span className="font-mono text-slate-400">
+              Avg {viewMetrics.avgProfitPct.toFixed(1)}%/tr
+            </span>
+          </div>
+        </div>
+
+        {/* 6. TOTAL EXECUTIONS & TRADE WIN RATE CARD */}
+        <div className="rounded-xl border border-slate-800 bg-[#0c111e]/90 p-3.5 shadow-md col-span-2 md:col-span-1">
+          <div className="flex items-center justify-between mb-1.5 text-xs text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-amber-400" />
+              <span>Executions</span>
+            </span>
+            <span
+              className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                executionMetrics.winRate >= 70
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {executionMetrics.winRate.toFixed(0)}% Win
+            </span>
+          </div>
+          <div className="font-heading font-extrabold text-xl lg:text-2xl text-amber-300 font-mono tracking-tight flex items-baseline gap-1.5">
+            <span>{executionMetrics.count}</span>
+            <span className="text-xs font-sans font-normal text-slate-400">trades</span>
+          </div>
+          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+            <span className="truncate">
+              {selectedAccount === 'all' ? 'All Accounts' : selectedAccount}
+            </span>
+            <span className="text-amber-400/80 font-mono shrink-0">
+              {executionMetrics.wins}W / {executionMetrics.losses}L
+            </span>
           </div>
         </div>
       </div>
+
+      {/* TRADING DAYS ACTIVITY & CONSISTENCY SUMMARY BANNER */}
+      {tradingDaysAnalysis.totalDaysTraded > 0 && (
+        <div className="bg-[#0b1220]/80 border border-slate-800/90 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-inner">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400">
+                <CalendarDays className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-semibold text-slate-200">
+                Trading Span:
+              </span>
+              <span className="text-slate-300 font-mono">
+                {tradingDaysAnalysis.firstTradedDate} → {tradingDaysAnalysis.lastTradedDate}
+              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700/60 font-mono">
+                {tradingDaysAnalysis.totalDaysTraded} active days over {tradingDaysAnalysis.calendarDaysSpan} calendar days ({((tradingDaysAnalysis.totalDaysTraded / Math.max(1, tradingDaysAnalysis.calendarDaysSpan)) * 100).toFixed(0)}% frequency)
+              </span>
+            </div>
+
+            {tradingDaysAnalysis.bestDay && (
+              <div className="flex items-center gap-1.5 text-slate-300 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
+                <Trophy className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span className="text-emerald-400 font-bold">Best Day:</span>
+                <span className="font-mono text-emerald-300 font-semibold">
+                  +${tradingDaysAnalysis.bestDay.profitUSD.toFixed(2)} USD
+                </span>
+                <span className="text-[10px] text-slate-400">({tradingDaysAnalysis.bestDay.date})</span>
+              </div>
+            )}
+
+            {tradingDaysAnalysis.maxWinStreak > 1 && (
+              <div className="flex items-center gap-1 text-amber-300 bg-amber-950/40 border border-amber-500/30 px-2 py-0.5 rounded-lg font-mono text-[11px]">
+                <Flame className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+                <span>Streak: <strong>{tradingDaysAnalysis.maxWinStreak} Win Days</strong></span>
+              </div>
+            )}
+          </div>
+
+          {/* Mini visual win/loss day distribution bar */}
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-slate-400">Daily Win Rate:</span>
+            <div className="w-28 h-2 rounded-full bg-slate-800 overflow-hidden flex shadow-inner">
+              <div
+                className="bg-emerald-500 h-full transition-all"
+                style={{ width: `${tradingDaysAnalysis.dailyWinRate}%` }}
+                title={`${tradingDaysAnalysis.totalWinDays} Win Days (${tradingDaysAnalysis.dailyWinRate.toFixed(1)}%)`}
+              />
+              <div
+                className="bg-rose-500 h-full transition-all"
+                style={{
+                  width: `${
+                    tradingDaysAnalysis.totalDaysTraded > 0
+                      ? (tradingDaysAnalysis.totalLossDays / tradingDaysAnalysis.totalDaysTraded) * 100
+                      : 0
+                  }%`,
+                }}
+                title={`${tradingDaysAnalysis.totalLossDays} Loss Days`}
+              />
+            </div>
+            <span className="font-mono font-bold text-emerald-400">
+              {tradingDaysAnalysis.dailyWinRate.toFixed(0)}%
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* TODAY'S MULTI-TRADE SESSION PROGRESSION BANNER (when today has trades) */}
       {todayTrades.length > 0 && (
@@ -1363,7 +1792,65 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
         </div>
       </div>
 
-      {/* Trades Table */}
+      {/* View Structure Mode Selector: Executions Log vs Daily Performance Summary */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 bg-[#0c111e]/90 rounded-xl border border-slate-800 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-slate-400 font-medium text-xs flex items-center gap-1.5 pl-1">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+            <span>View Structure:</span>
+          </span>
+
+          <div className="flex items-center gap-1 bg-[#111726] p-0.5 rounded-lg border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setViewMode('executions')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                viewMode === 'executions'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-cyan-400" />
+              <span>All Executions ({filteredTrades.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('daily')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                viewMode === 'daily'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Daily Performance ({tradingDaysAnalysis.totalDaysTraded} Days Traded)</span>
+            </button>
+          </div>
+        </div>
+
+        {viewMode === 'daily' && (
+          <div className="flex items-center gap-2 pr-1 text-xs">
+            <button
+              type="button"
+              onClick={() => expandAllDays(tradingDaysAnalysis.daySummaries.map((d) => d.dateStr))}
+              className="text-[11px] text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer"
+            >
+              Expand All Days
+            </button>
+            <span className="text-slate-600">•</span>
+            <button
+              type="button"
+              onClick={collapseAllDays}
+              className="text-[11px] text-slate-400 hover:text-slate-300 hover:underline cursor-pointer"
+            >
+              Collapse All
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Trades Table Area */}
       {filteredTrades.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 mx-auto flex items-center justify-center text-slate-500">
@@ -1389,7 +1876,359 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
             </span>
           </button>
         </div>
+      ) : viewMode === 'daily' ? (
+        /* DAY-BY-DAY PERFORMANCE GROUPING TABLE */
+        <div className="rounded-2xl border border-slate-800 bg-[#0c111e]/90 overflow-hidden shadow-xl">
+          <div className="p-3 bg-[#111726]/60 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-slate-300 font-medium flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-cyan-400" />
+              <span>
+                Day-by-Day Aggregation: {tradingDaysAnalysis.totalDaysTraded} Unique Trading Day{tradingDaysAnalysis.totalDaysTraded === 1 ? '' : 's'}{' '}
+                {selectedAccount !== 'all' ? `for ${selectedAccount}` : 'across Portfolio'}
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">
+                {tradingDaysAnalysis.totalWinDays} Win Days ({tradingDaysAnalysis.dailyWinRate.toFixed(0)}%)
+              </span>
+              {tradingDaysAnalysis.currentWinStreak > 1 && (
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-semibold border border-amber-500/30 flex items-center gap-1">
+                  <Flame className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  <span>{tradingDaysAnalysis.currentWinStreak}d Win Streak</span>
+                </span>
+              )}
+            </span>
+            <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+              <button
+                type="button"
+                onClick={toggleDateDisplayMode}
+                className="text-cyan-400 hover:underline cursor-pointer flex items-center gap-1"
+                title="Toggle between short day (Mon) and full day (Monday)"
+              >
+                <span>Format:</span>
+                <span className="font-bold underline">{dateDisplayMode === 'ddd' ? 'Short (Mon)' : 'Full (Monday)'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-800/80 bg-[#0c1424]/90 text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+                  <th className="py-3 px-3">Trading Date</th>
+                  <th className="py-3 px-3">Day Result</th>
+                  <th className="py-3 px-3 text-center">Executions & Lots</th>
+                  <th className="py-3 px-3 text-right">Day Start Equity</th>
+                  <th className="py-3 px-3 text-right">Day End Equity</th>
+                  <th className="py-3 px-3 text-right">Net Day Profit</th>
+                  <th className="py-3 px-3 text-right">Day Growth %</th>
+                  <th className="py-3 px-3 text-right">Reinvest / Withdraw</th>
+                  <th className="py-3 px-3 text-center">Trades & Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/40">
+                {tradingDaysAnalysis.daySummaries.map((day) => {
+                  const isToday = day.dateStr === todayStr;
+                  const isExpanded = expandedDays.has(day.dateStr);
+                  const isCent = day.currency === 'USC';
+                  const unitSymbol = isCent ? '¢' : '$';
+
+                  return (
+                    <React.Fragment key={day.dateStr}>
+                      <tr
+                        className={`hover:bg-[#111a2d]/60 transition-colors ${
+                          isToday ? 'bg-emerald-950/20' : ''
+                        }`}
+                      >
+                        {/* Trading Date */}
+                        <td className="py-3 px-3 font-mono font-medium">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-200 font-semibold">{day.dateStr}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                                day.isWeekend
+                                  ? 'bg-amber-950/60 text-amber-300 border border-amber-800/50'
+                                  : 'bg-[#111726] text-cyan-300 border border-cyan-800/40'
+                              }`}
+                            >
+                              {dateDisplayMode === 'dddd' ? day.fullDay : day.shortDay}
+                            </span>
+                            {isToday && (
+                              <span className="text-[9px] bg-emerald-500 text-slate-950 font-bold px-1.5 py-0.2 rounded">
+                                TODAY
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Day Result Badge */}
+                        <td className="py-3 px-3">
+                          {day.isWinDay ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                              <TrendingUp className="w-3 h-3 text-emerald-400" />
+                              <span>Win Day (+{day.dayNetGainPct.toFixed(2)}%)</span>
+                            </span>
+                          ) : day.isLossDay ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-400 bg-rose-950/50 border border-rose-500/30 px-2 py-0.5 rounded-md">
+                              <TrendingDown className="w-3 h-3 text-rose-400" />
+                              <span>Loss Day ({day.dayNetGainPct.toFixed(2)}%)</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-md">
+                              <span>Breakeven</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Executions & Lots */}
+                        <td className="py-3 px-3 text-center font-mono">
+                          <div className="flex flex-col items-center">
+                            <span className="text-cyan-300 font-bold">
+                              {day.tradeCount} trade{day.tradeCount > 1 ? 's' : ''}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {day.totalLot.toFixed(2)} lot
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Day Start Equity */}
+                        <td className="py-3 px-3 text-right font-mono text-slate-300">
+                          <div>
+                            {unitSymbol}{day.startEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                            {isCent && <span className="text-[10px] text-purple-400">USC</span>}
+                          </div>
+                          {isCent && (
+                            <div className="text-[10px] text-slate-500">
+                              ≈ ${(day.startEquity * 0.01).toFixed(2)} USD
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Day End Equity */}
+                        <td className="py-3 px-3 text-right font-mono font-bold text-slate-100">
+                          <div>
+                            {unitSymbol}{day.endEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                            {isCent && <span className="text-[10px] text-purple-400">USC</span>}
+                          </div>
+                          {isCent && (
+                            <div className="text-[10px] text-cyan-400 font-normal">
+                              ≈ ${(day.endEquity * 0.01).toFixed(2)} USD
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Net Day Profit */}
+                        <td className="py-3 px-3 text-right font-mono font-bold">
+                          <div className={day.dayProfitUSD >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                            {day.dayProfitNative >= 0 ? '+' : ''}
+                            {unitSymbol}{day.dayProfitNative.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                            {isCent && <span className="text-[10px] text-purple-400 font-normal">USC</span>}
+                          </div>
+                          {isCent && (
+                            <div className={`text-[10px] ${day.dayProfitUSD >= 0 ? 'text-emerald-300/80' : 'text-rose-300/80'}`}>
+                              ≈ {day.dayProfitUSD >= 0 ? '+' : ''}${day.dayProfitUSD.toFixed(2)} USD
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Day Growth % */}
+                        <td className="py-3 px-3 text-right font-mono font-bold">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[11px] ${
+                              day.dayNetGainPct >= 0
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                            }`}
+                          >
+                            {day.dayNetGainPct >= 0 ? '+' : ''}
+                            {day.dayNetGainPct.toFixed(2)}%
+                          </span>
+                        </td>
+
+                        {/* Reinvest / Withdraw */}
+                        <td className="py-3 px-3 text-right font-mono text-[11px]">
+                          <div className="text-cyan-400">
+                            Reinv: {unitSymbol}{day.dayReinvestNative.toFixed(2)}
+                          </div>
+                          {day.dayWithdrawnNative > 0 ? (
+                            <div className="text-amber-400 font-bold">
+                              W/D: {unitSymbol}{day.dayWithdrawnNative.toFixed(2)}
+                            </div>
+                          ) : (
+                            <div className="text-slate-600">No W/D</div>
+                          )}
+                        </td>
+
+                        {/* Trades & Actions */}
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => toggleDayExpanded(day.dateStr)}
+                              className={`px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 transition-all cursor-pointer border ${
+                                isExpanded
+                                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                                  : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700'
+                              }`}
+                              title="View individual trade executions for this date"
+                            >
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              <span>{isExpanded ? 'Hide' : 'Details'} ({day.tradeCount})</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openAddModalWithStart(
+                                  day.endEquity,
+                                  day.trades[0]?.investor_name || (selectedAccount === 'all' ? '' : selectedAccount),
+                                  day.dateStr
+                                )
+                              }
+                              className="p-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 transition-all cursor-pointer"
+                              title={`Add another trade execution for ${day.dateStr} starting at ${day.endEquity.toFixed(2)}`}
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Sub-table of intra-day trade executions when expanded */}
+                      {isExpanded && (
+                        <tr className="bg-[#090f1d] border-b border-cyan-950/60">
+                          <td colSpan={9} className="p-3">
+                            <div className="bg-[#0c1424] border border-cyan-500/20 rounded-xl p-3 space-y-2">
+                              <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-800 pb-2">
+                                <span className="font-semibold text-cyan-300 flex items-center gap-1.5">
+                                  <ClipboardList className="w-3.5 h-3.5 text-cyan-400" />
+                                  <span>
+                                    {day.tradeCount} Execution{day.tradeCount > 1 ? 's' : ''} on {day.dateStr} ({day.fullDay})
+                                  </span>
+                                </span>
+                                <span className="text-[11px] text-slate-400 font-mono">
+                                  Opening: ${day.startEquity.toFixed(2)} → Closing: ${day.endEquity.toFixed(2)} | Net Day Profit: {day.dayProfitNative >= 0 ? '+' : ''}${day.dayProfitNative.toFixed(2)}
+                                </span>
+                              </div>
+
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left text-[11px] border-collapse">
+                                  <thead>
+                                    <tr className="text-slate-400 border-b border-slate-800/80 text-[10px] uppercase font-semibold">
+                                      <th className="py-1.5 px-2">#</th>
+                                      <th className="py-1.5 px-2">Investor</th>
+                                      <th className="py-1.5 px-2">Currency</th>
+                                      <th className="py-1.5 px-2 text-right">Start Equity</th>
+                                      <th className="py-1.5 px-2 text-center">Lot Size</th>
+                                      <th className="py-1.5 px-2 text-right">Profit (%)</th>
+                                      <th className="py-1.5 px-2 text-right">Profit Amount</th>
+                                      <th className="py-1.5 px-2 text-right">Reinvest / Withdraw</th>
+                                      <th className="py-1.5 px-2 text-right">End Equity</th>
+                                      <th className="py-1.5 px-2">Notes</th>
+                                      <th className="py-1.5 px-2 text-right">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-800/40">
+                                    {day.trades.map((tr, idx) => {
+                                      const trCurrency = tr.currency || getInvestorCurrency(tr.investor_name);
+                                      const trUnit = trCurrency === 'USC' ? '¢' : '$';
+                                      const trProfitPos = (tr.profit_amount || 0) >= 0;
+
+                                      return (
+                                        <tr key={tr.id} className="hover:bg-slate-800/30">
+                                          <td className="py-1.5 px-2 font-mono font-bold text-cyan-400">
+                                            #{idx + 1}
+                                          </td>
+                                          <td className="py-1.5 px-2 font-medium text-slate-200">
+                                            {tr.investor_name}
+                                          </td>
+                                          <td className="py-1.5 px-2">
+                                            <span
+                                              className={`px-1.5 py-0.2 rounded font-mono text-[9px] font-bold ${
+                                                trCurrency === 'USC'
+                                                  ? 'bg-purple-950/60 text-purple-300 border border-purple-800/40'
+                                                  : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40'
+                                              }`}
+                                            >
+                                              {trCurrency}
+                                            </span>
+                                          </td>
+                                          <td className="py-1.5 px-2 text-right font-mono text-slate-300">
+                                            {trUnit}{tr.start_equity.toFixed(2)}
+                                          </td>
+                                          <td className="py-1.5 px-2 text-center font-mono font-bold text-cyan-300">
+                                            {tr.lot_size.toFixed(2)}
+                                          </td>
+                                          <td className="py-1.5 px-2 text-right font-mono font-bold">
+                                            <span
+                                              className={
+                                                tr.profit_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                                              }
+                                            >
+                                              {tr.profit_pct >= 0 ? '+' : ''}
+                                              {tr.profit_pct.toFixed(2)}%
+                                            </span>
+                                          </td>
+                                          <td className="py-1.5 px-2 text-right font-mono font-bold">
+                                            <span
+                                              className={
+                                                trProfitPos ? 'text-emerald-400' : 'text-rose-400'
+                                              }
+                                            >
+                                              {trProfitPos ? '+' : ''}
+                                              {trUnit}{tr.profit_amount.toFixed(2)}
+                                            </span>
+                                          </td>
+                                          <td className="py-1.5 px-2 text-right font-mono text-slate-300">
+                                            <span>Reinv: {trUnit}{tr.reinvest.toFixed(2)}</span>
+                                            {tr.withdraw > 0 && (
+                                              <span className="text-amber-400 ml-1">
+                                                | W/D: {trUnit}{tr.withdraw.toFixed(2)}
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="py-1.5 px-2 text-right font-mono font-bold text-slate-100">
+                                            {trUnit}{tr.end_equity.toFixed(2)}
+                                          </td>
+                                          <td className="py-1.5 px-2 text-slate-400 max-w-[150px] truncate">
+                                            {tr.notes || '—'}
+                                          </td>
+                                          <td className="py-1.5 px-2 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                              <button
+                                                onClick={() => openEditModal(tr)}
+                                                className="p-1 rounded text-slate-400 hover:text-cyan-400 hover:bg-cyan-950/30"
+                                                title="Edit Execution"
+                                              >
+                                                <Edit2 className="w-3 h-3" />
+                                              </button>
+                                              <button
+                                                onClick={() => onDeleteTrade(tr.id)}
+                                                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-950/30"
+                                                title="Delete Execution"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
+        /* GRANULAR TRADE EXECUTIONS TABLE (Default View) */
         <div className="rounded-2xl border border-slate-800 bg-[#0c111e]/90 overflow-hidden shadow-xl">
           <div className="p-3 bg-[#111726]/60 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
             <span className="text-slate-300 font-medium flex items-center gap-2">
