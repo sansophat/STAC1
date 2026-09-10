@@ -1,0 +1,8 @@
+{
+  "name": "InvestorFlow - SNL AI DCA Future Trade & Gold Calculator",
+  "description": "Comprehensive Gold (XAUUSD) position sizing and risk calculator, automated investor portfolio management, AI DCA equity scaling simulation, and real trade logs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

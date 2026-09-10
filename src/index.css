@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 93%;
+    --card: 224 40% 8%;
+    --card-foreground: 210 40% 93%;
+    --popover: 224 40% 8%;
+    --popover-foreground: 210 40% 93%;
+    --primary: 196 100% 72%;
+    --primary-foreground: 222 47% 5%;
+    --secondary: 270 60% 72%;
+    --secondary-foreground: 222 47% 5%;
+    --muted: 220 30% 18%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 152 100% 69%;
+    --accent-foreground: 222 47% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 30% 14%;
+    --input: 220 30% 12%;
+    --ring: 196 100% 72%;
+    --radius: 0.75rem;
+  }
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #080c14;
+  color: #e2e8f0;
+}
+
+.font-heading {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.khmer {
+  font-family: 'Battambang', system-ui, sans-serif;
+}
+
+.khmer .font-heading {
+  font-family: 'Battambang', system-ui, sans-serif;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #70d6ff 0%, #c77dff 50%, #64dfdf 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-card-border {
+  background: linear-gradient(135deg, rgba(112, 214, 255, 0.2), rgba(199, 125, 255, 0.15), rgba(100, 223, 223, 0.2));
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1321;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
