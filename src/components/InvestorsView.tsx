@@ -52,6 +52,7 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
   onSimulateForInvestor,
   t,
 }) => {
+  const isKm = t.langToggle === 'English' || t.day === 'ថ្ងៃ';
   const [modalOpen, setModalOpen] = useState(false);
   const [editingInvestor, setEditingInvestor] = useState<Investor | null>(null);
   const [formData, setFormData] = useState<Omit<Investor, 'id' | 'created_at'>>(EMPTY_INVESTOR);
@@ -110,7 +111,7 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
               {t.investorsTitle}
             </h1>
             <p className="text-xs text-slate-400">
-              Manage accounts, customized risk profiles, and 1-click simulation parameters
+              {t.investorsSubtitle || (isKm ? 'គ្រប់គ្រងគណនី កម្រិតហានិភ័យផ្ទាល់ខ្លួន និងប៉ារ៉ាម៉ែត្រសម្រង់ទុន' : 'Manage accounts, customized risk profiles, and 1-click simulation parameters')}
             </p>
           </div>
         </div>
@@ -158,7 +159,7 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
                             : 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60'
                         }`}
                       >
-                        {inv.currency === 'USC' ? 'USC (Cent)' : 'USD Standard'}
+                        {inv.currency === 'USC' ? (isKm ? 'USC (សេន)' : 'USC (Cent)') : (isKm ? 'USD ស្តង់ដារ' : 'USD Standard')}
                       </span>
                     </div>
                     <h3 className="font-heading font-bold text-base text-slate-100 group-hover:text-cyan-300 transition-colors">
@@ -184,14 +185,14 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
                     <button
                       onClick={() => openEditModal(inv)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="Edit Investor"
+                      title={t.editInvestor || (isKm ? 'កែប្រែ' : 'Edit Investor')}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onDeleteInvestor(inv.id)}
                       className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/30 transition-colors cursor-pointer"
-                      title="Delete Investor"
+                      title={t.deleteInvestor || (isKm ? 'លុប' : 'Delete Investor')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -217,21 +218,21 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
                   </div>
 
                   <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                    <span className="text-[10px] text-slate-500 block">Daily Target</span>
+                    <span className="text-[10px] text-slate-500 block">{isKm ? 'គោលដៅប្រចាំថ្ងៃ' : 'Daily Target'}</span>
                     <span className="text-xs font-mono font-bold text-emerald-400">
                       {inv.profit_min}% - {inv.profit_max}%
                     </span>
                   </div>
 
                   <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                    <span className="text-[10px] text-slate-500 block">Withdraw / Reinvest</span>
+                    <span className="text-[10px] text-slate-500 block">{isKm ? 'ដកប្រាក់ / វិនិយោគឡើងវិញ' : 'Withdraw / Reinvest'}</span>
                     <span className="text-xs font-mono text-purple-300">
                       {inv.withdraw_pct}% / {inv.reinvest_pct}%
                     </span>
                   </div>
 
                   <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                    <span className="text-[10px] text-slate-500 block">Base Lot / Step</span>
+                    <span className="text-[10px] text-slate-500 block">{isKm ? 'Lot គោល / ជំហាន' : 'Base Lot / Step'}</span>
                     <span className="text-xs font-mono text-amber-300">
                       {inv.base_lot_size} (+{inv.lot_increment})
                     </span>
@@ -317,7 +318,7 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
                       <Coins className="w-3.5 h-3.5 text-cyan-400" />
-                      Account Currency & Type
+                      {isKm ? 'រូបិយប័ណ្ណ & ប្រភេទគណនី' : 'Account Currency & Type'}
                     </label>
                     <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/70 border border-cyan-800/40 px-1.5 py-0.5 rounded">
                       1 USD = 100 USC
@@ -345,7 +346,7 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
                           : 'bg-[#0c111e] border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      USD ($ Standard)
+                      {isKm ? 'USD ($ ស្តង់ដារ)' : 'USD ($ Standard)'}
                     </button>
                     <button
                       type="button"
@@ -368,13 +369,13 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
                           : 'bg-[#0c111e] border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      USC (Cent Account ¢)
+                      {isKm ? 'USC (គណនីសេន ¢)' : 'USC (Cent Account ¢)'}
                     </button>
                   </div>
                   <p className="text-[10px] text-slate-400 leading-tight">
                     {formData.currency === 'USC'
-                      ? 'Cent account: Balances are held in USC (100 USC = $1.00 USD). Ideal for DCA grid trading.'
-                      : 'Standard account: Balances are held in US Dollars (USD / USDT).'}
+                      ? (isKm ? 'គណនីសេន៖ សមតុល្យគិតជា USC (100 USC = $1.00 USD)។ ស័ក្តិសមបំផុតសម្រាប់យុទ្ធសាស្ត្រ DCA grid។' : 'Cent account: Balances are held in USC (100 USC = $1.00 USD). Ideal for DCA grid trading.')
+                      : (isKm ? 'គណនីស្តង់ដារ៖ សមតុល្យគិតជាដុល្លារអាមេរិក (USD / USDT)។' : 'Standard account: Balances are held in US Dollars (USD / USDT).')}
                   </p>
                 </div>
 

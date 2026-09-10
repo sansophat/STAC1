@@ -97,10 +97,10 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
               title={
                 cloudSync.status === 'connected'
-                  ? 'Cloud Synced across Mobile & Desktop. Click to push manual sync.'
+                  ? (t.cloudSyncTooltip || 'Cloud Synced across Mobile & Desktop. Click to push manual sync.')
                   : cloudSync.status === 'syncing'
-                  ? 'Syncing trades to cloud...'
-                  : 'Cloud Connecting. Click to push sync.'
+                  ? (t.syncing || 'Syncing trades to cloud...')
+                  : (t.cloudConnectingTooltip || 'Cloud Connecting. Click to push sync.')
               }
             >
               {cloudSync.status === 'syncing' ? (
@@ -111,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <Cloud className="w-3.5 h-3.5 text-cyan-400" />
               )}
               <span className="hidden lg:inline text-[11px] font-mono">
-                {cloudSync.status === 'connected' ? 'Cloud Synced' : cloudSync.status === 'syncing' ? 'Syncing...' : 'Cloud Sync'}
+                {cloudSync.status === 'connected' ? (t.cloudSynced || 'Cloud Synced') : cloudSync.status === 'syncing' ? (t.syncing || 'Syncing...') : (t.cloudSync || 'Cloud Sync')}
               </span>
             </button>
           )}
@@ -124,17 +124,17 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25'
                 : 'bg-slate-900/80 text-slate-400 hover:text-cyan-300 border border-slate-800 hover:border-cyan-500/30'
             }`}
-            title={isAdmin ? 'Admin Settings & Branding' : 'Admin Login'}
+            title={isAdmin ? (t.adminTooltip || 'Admin Settings & Branding') : (t.adminLogin || 'Admin Login')}
           >
             {isAdmin ? (
               <>
                 <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden md:inline font-semibold">Admin</span>
+                <span className="hidden md:inline font-semibold">{t.admin || 'Admin'}</span>
               </>
             ) : (
               <>
                 <Lock className="w-3.5 h-3.5 text-slate-400" />
-                <span className="hidden md:inline">Admin</span>
+                <span className="hidden md:inline">{t.admin || 'Admin'}</span>
               </>
             )}
           </button>

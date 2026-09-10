@@ -27,6 +27,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   onDeleteHistoryItem,
   t,
 }) => {
+  const isKm = t.langToggle === 'English' || t.day === 'ថ្ងៃ';
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -39,7 +41,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             {t.historyTitle}
           </h1>
           <p className="text-xs text-slate-400">
-            Archived simulation projections, equity milestones, and downloadable reports
+            {isKm
+              ? 'ការប៉ាន់ស្មានការក្លែងធ្វើដែលបានរក្សាទុក ព្រឹត្តិការណ៍ដើមទុន និងរបាយការណ៍ទាញយក'
+              : 'Archived simulation projections, equity milestones, and downloadable reports'}
           </p>
         </div>
       </div>
@@ -52,7 +56,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           </div>
           <div className="text-slate-400 text-sm">{t.noHistory}</div>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Run simulations in the Simulator tab and click &quot;Save Result&quot; to archive projections here.
+            {isKm
+              ? 'ដំណើរការការក្លែងធ្វើនៅក្នុងផ្ទាំងម៉ាស៊ីនក្លែងធ្វើ រួចចុច «រក្សាទុកលទ្ធផល» ដើម្បីរក្សាទុកនៅទីនេះ។'
+              : 'Run simulations in the Simulator tab and click "Save Result" to archive projections here.'}
           </p>
         </div>
       ) : (
@@ -80,23 +86,23 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 font-mono">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                    {item.summary.startDate} → {item.summary.endDate} ({item.summary.days} days)
+                    {item.summary.startDate} → {item.summary.endDate} ({item.summary.days} {isKm ? 'ថ្ងៃ' : 'days'})
                   </span>
                   <span>•</span>
                   <span>
-                    Initial: <strong className="text-slate-200">${item.summary.initialCapital.toLocaleString()}</strong>
+                    {isKm ? 'ដើមទុនដំបូង៖ ' : 'Initial: '}<strong className="text-slate-200">${item.summary.initialCapital.toLocaleString()}</strong>
                   </span>
                   <span>•</span>
                   <span>
-                    Final: <strong className="text-cyan-300">${item.summary.finalCapital.toLocaleString()}</strong>
+                    {isKm ? 'ចុងក្រោយ៖ ' : 'Final: '}<strong className="text-cyan-300">${item.summary.finalCapital.toLocaleString()}</strong>
                   </span>
                   <span>•</span>
                   <span className="text-emerald-400 font-semibold">
-                    Net Profit: +${item.summary.netProfit.toLocaleString()} (+{item.summary.growthPct.toFixed(2)}%)
+                    {isKm ? 'ចំណេញសុទ្ធ៖ ' : 'Net Profit: '}+${item.summary.netProfit.toLocaleString()} (+{item.summary.growthPct.toFixed(2)}%)
                   </span>
                   <span>•</span>
                   <span className="text-amber-300">
-                    Final Lot: {item.summary.finalLot.toFixed(4)}
+                    {isKm ? 'ឡូត៍ចុងក្រោយ៖ ' : 'Final Lot: '}{item.summary.finalLot.toFixed(4)}
                   </span>
                 </div>
               </div>
@@ -106,16 +112,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 <button
                   onClick={() => onLoadSimulation(item)}
                   className="flex items-center gap-1.5 bg-slate-900 hover:bg-cyan-950/50 border border-slate-800 hover:border-cyan-500/40 text-cyan-300 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium"
-                  title="Load into Simulator"
+                  title={isKm ? 'ផ្ទុកចូលក្នុងម៉ាស៊ីនក្លែងធ្វើ' : 'Load into Simulator'}
                 >
                   <Play className="w-3.5 h-3.5" />
-                  <span>Load</span>
+                  <span>{isKm ? 'ផ្ទុក' : 'Load'}</span>
                 </button>
 
                 <button
                   onClick={() => exportSimulationToCSV(item, item.investor_name)}
                   className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-slate-100 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer"
-                  title="Download CSV"
+                  title={isKm ? 'ទាញយក CSV' : 'Download CSV'}
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>CSV</span>
@@ -124,7 +130,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 <button
                   onClick={() => exportSimulationToPDF(item, item.investor_name)}
                   className="flex items-center gap-1.5 bg-slate-900 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-500/40 text-rose-300 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer"
-                  title="Download PDF"
+                  title={isKm ? 'ទាញយក PDF' : 'Download PDF'}
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>PDF</span>
@@ -133,7 +139,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 <button
                   onClick={() => onDeleteHistoryItem(item.id)}
                   className="p-2 rounded-xl bg-slate-900 hover:bg-rose-950/50 border border-slate-800 hover:border-rose-500/40 text-slate-500 hover:text-rose-400 transition-all cursor-pointer"
-                  title="Delete Simulation"
+                  title={isKm ? 'លុបការក្លែងធ្វើ' : 'Delete Simulation'}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

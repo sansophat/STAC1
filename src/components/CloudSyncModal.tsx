@@ -44,6 +44,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   onImportBackup,
   t,
 }) => {
+  const isKm = t.langToggle === 'English' || t.day === 'ថ្ងៃ';
   const [isPushing, setIsPushing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [cloudCounts, setCloudCounts] = useState<{ trades: number; investors: number; loaded: boolean }>({
@@ -57,9 +58,6 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   const hasDemoTrades = trades.some((tr) => DEMO_TRADE_IDS.includes(tr.id));
   const hasDemoInvestors = investors.some((inv) => DEMO_INVESTOR_IDS.includes(inv.id));
   const hasDemoData = hasDemoTrades || hasDemoInvestors;
-
-  const realTradesCount = trades.filter((tr) => !DEMO_TRADE_IDS.includes(tr.id)).length;
-  const realInvestorsCount = investors.filter((inv) => !DEMO_INVESTOR_IDS.includes(inv.id)).length;
 
   // Refresh live cloud counts when modal opens
   const checkLiveCloud = async () => {
@@ -92,12 +90,16 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
       await checkLiveCloud();
       setNotification({
         type: 'success',
-        text: `Successfully synced ${trades.length} trades and ${investors.length} accounts to Cloud Firestore! Ready on your mobile and desktop.`,
+        text: isKm
+          ? `បានធ្វើសមកាលកម្មដោយជោគជ័យនូវ ${trades.length} កំណត់ត្រាជួញដូរ និង ${investors.length} គណនីទៅកាន់ Cloud Firestore! រួចរាល់លើទូរស័ព្ទ និងកុំព្យូទ័ររបស់អ្នក។`
+          : `Successfully synced ${trades.length} trades and ${investors.length} accounts to Cloud Firestore! Ready on your mobile and desktop.`,
       });
     } catch (e: any) {
       setNotification({
         type: 'error',
-        text: `Failed to push data to cloud: ${e?.message || 'Network error'}`,
+        text: isKm
+          ? `បរាជ័យក្នុងការរុញទិន្នន័យទៅពពក៖ ${e?.message || 'កំហុសបណ្តាញ'}`
+          : `Failed to push data to cloud: ${e?.message || 'Network error'}`,
       });
     } finally {
       setIsPushing(false);
@@ -112,12 +114,16 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
       await checkLiveCloud();
       setNotification({
         type: 'success',
-        text: 'Successfully downloaded latest cloud records into your workspace.',
+        text: isKm
+          ? 'បានទាញយកទិន្នន័យចុងក្រោយពីពពកចូលក្នុងកម្មវិធីដោយជោគជ័យ។'
+          : 'Successfully downloaded latest cloud records into your workspace.',
       });
     } catch (e: any) {
       setNotification({
         type: 'error',
-        text: `Failed to pull data from cloud: ${e?.message || 'Network error'}`,
+        text: isKm
+          ? `បរាជ័យក្នុងការទាញទិន្នន័យពីពពក៖ ${e?.message || 'កំហុសបណ្តាញ'}`
+          : `Failed to pull data from cloud: ${e?.message || 'Network error'}`,
       });
     } finally {
       setIsPulling(false);
@@ -128,7 +134,9 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
     onPurgeDemoData();
     setNotification({
       type: 'info',
-      text: 'Removed sample demo accounts & trades. Only your real data remains.',
+      text: isKm
+        ? 'បានលុបគណនី និងការជួញដូរសាកល្បងគំរូ។ នៅសល់តែទិន្នន័យពិតរបស់អ្នកប៉ុណ្ណោះ។'
+        : 'Removed sample demo accounts & trades. Only your real data remains.',
     });
   };
 
@@ -142,12 +150,14 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
         onImportBackup(text);
         setNotification({
           type: 'success',
-          text: 'Backup file successfully imported! You can now click "Sync My Current Data to Cloud" to sync it everywhere.',
+          text: isKm
+            ? 'ឯកសារបម្រុងទុកត្រូវបាននាំចូលដោយជោគជ័យ! អ្នកអាចចុច "ធ្វើសមកាលកម្មទិន្នន័យបច្ចុប្បន្នទៅពពក" ដើម្បីបញ្ជូនទៅគ្រប់ឧបករណ៍។'
+            : 'Backup file successfully imported! You can now click "Sync My Current Data to Cloud" to sync it everywhere.',
         });
       } catch (err: any) {
         setNotification({
           type: 'error',
-          text: `Invalid backup file: ${err.message}`,
+          text: isKm ? `ឯកសារបម្រុងទុកមិនត្រឹមត្រូវ៖ ${err.message}` : `Invalid backup file: ${err.message}`,
         });
       }
     };
@@ -175,7 +185,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-heading font-bold text-slate-100">
-                  Firebase Cloud Sync Center
+                  {isKm ? 'មជ្ឈមណ្ឌលធ្វើសមកាលកម្មពពក Firebase' : 'Firebase Cloud Sync Center'}
                 </h2>
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${
@@ -187,11 +197,17 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                   }`}
                 >
                   <CloudCheck className="w-3 h-3" />
-                  <span>{cloudSync.status === 'connected' ? 'LIVE SYNC' : cloudSync.status.toUpperCase()}</span>
+                  <span>
+                    {cloudSync.status === 'connected'
+                      ? (isKm ? 'សមកាលកម្មបន្តផ្ទាល់' : 'LIVE SYNC')
+                      : cloudSync.status.toUpperCase()}
+                  </span>
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Real-time multi-device sync across Mobile (Telegram / Web) & Desktop
+                {isKm
+                  ? 'សមកាលកម្មច្រើនឧបករណ៍ភ្លាមៗលើទូរស័ព្ទ (Telegram / Web) និងកុំព្យូទ័រ'
+                  : 'Real-time multi-device sync across Mobile (Telegram / Web) & Desktop'}
               </p>
             </div>
           </div>
@@ -232,23 +248,25 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span className="font-semibold flex items-center gap-1.5 text-slate-300">
                   <Laptop className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Current App Data</span>
+                  <span>{isKm ? 'ទិន្នន័យក្នុងកម្មវិធីបច្ចុប្បន្ន' : 'Current App Data'}</span>
                 </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Local View</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                  {isKm ? 'ក្នុងម៉ាស៊ីន' : 'Local View'}
+                </span>
               </div>
               <div className="space-y-1.5 pt-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Trade Records:</span>
+                  <span className="text-slate-400">{isKm ? 'កំណត់ត្រាជួញដូរ៖' : 'Trade Records:'}</span>
                   <span className="font-mono font-bold text-slate-100 text-sm">{trades.length}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Investor Accounts:</span>
+                  <span className="text-slate-400">{isKm ? 'គណនីវិនិយោគិន៖' : 'Investor Accounts:'}</span>
                   <span className="font-mono font-bold text-slate-100 text-sm">{investors.length}</span>
                 </div>
                 {hasDemoData && (
                   <div className="text-[11px] text-amber-400/90 pt-1 flex items-center gap-1 border-t border-slate-800">
                     <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
-                    <span>Includes sample demo records</span>
+                    <span>{isKm ? 'រួមបញ្ចូលទិន្នន័យសាកល្បងគំរូ' : 'Includes sample demo records'}</span>
                   </div>
                 )}
               </div>
@@ -259,28 +277,28 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span className="font-semibold flex items-center gap-1.5 text-slate-300">
                   <Database className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Cloud Firestore</span>
+                  <span>{isKm ? 'ពពក Cloud Firestore' : 'Cloud Firestore'}</span>
                 </span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Cloud Live
+                  {isKm ? 'ពពកបន្តផ្ទាល់' : 'Cloud Live'}
                 </span>
               </div>
               <div className="space-y-1.5 pt-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Cloud Trades:</span>
+                  <span className="text-slate-400">{isKm ? 'ការជួញដូរលើពពក៖' : 'Cloud Trades:'}</span>
                   <span className="font-mono font-bold text-slate-100 text-sm">
                     {cloudCounts.loaded ? cloudCounts.trades : '...'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Cloud Accounts:</span>
+                  <span className="text-slate-400">{isKm ? 'គណនីលើពពក៖' : 'Cloud Accounts:'}</span>
                   <span className="font-mono font-bold text-slate-100 text-sm">
                     {cloudCounts.loaded ? cloudCounts.investors : '...'}
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-400 pt-1 flex items-center gap-1 border-t border-slate-800">
                   <Smartphone className="w-3 h-3 text-cyan-400 shrink-0" />
-                  <span>Syncs automatically to phones</span>
+                  <span>{isKm ? 'ធ្វើសមកាលកម្មស្វ័យប្រវត្តិទៅទូរស័ព្ទ' : 'Syncs automatically to phones'}</span>
                 </div>
               </div>
             </div>
@@ -297,12 +315,16 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               <RefreshCw className={`w-4 h-4 ${isPushing ? 'animate-spin' : ''}`} />
               <span>
                 {isPushing
-                  ? 'Uploading & Syncing...'
-                  : `Sync My Current Data to Cloud (${trades.length} trades, ${investors.length} accounts)`}
+                  ? (isKm ? 'កំពុងបញ្ចូល និងធ្វើសមកាលកម្ម...' : 'Uploading & Syncing...')
+                  : (isKm
+                      ? `ធ្វើសមកាលកម្មទិន្នន័យបច្ចុប្បន្នទៅពពក (${trades.length} ជួញដូរ, ${investors.length} គណនី)`
+                      : `Sync My Current Data to Cloud (${trades.length} trades, ${investors.length} accounts)`)}
               </span>
             </button>
             <p className="text-[11px] text-slate-400 text-center leading-relaxed">
-              Uploads everything currently on your screen to Cloud Firestore and purges any old demo records so all your devices show your exact trading data.
+              {isKm
+                ? 'បញ្ជូនអ្វីគ្រប់យ៉ាងនៅលើអេក្រង់របស់អ្នកទៅ Cloud Firestore និងសម្អាតកំណត់ត្រាសាកល្បងចាស់ៗ ដើម្បីឱ្យគ្រប់ឧបករណ៍បង្ហាញទិន្នន័យពិតរបស់អ្នក។'
+                : 'Uploads everything currently on your screen to Cloud Firestore and purges any old demo records so all your devices show your exact trading data.'}
             </p>
           </div>
 
@@ -315,7 +337,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
             >
               <Download className={`w-3.5 h-3.5 text-cyan-400 ${isPulling ? 'animate-bounce' : ''}`} />
-              <span>Pull Data from Cloud</span>
+              <span>{isKm ? 'ទាញយកទិន្នន័យពីពពក' : 'Pull Data from Cloud'}</span>
             </button>
 
             {hasDemoData ? (
@@ -323,10 +345,10 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                 type="button"
                 onClick={handlePurge}
                 className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-medium transition-all cursor-pointer"
-                title="Removes sample records (Sokha Meng, Dara Chan, Vannak Kem)"
+                title="Removes sample records"
               >
                 <Trash2 className="w-3.5 h-3.5 text-amber-400" />
-                <span>Clean Out Demo Records</span>
+                <span>{isKm ? 'សម្អាតទិន្នន័យសាកល្បងគំរូ' : 'Clean Out Demo Records'}</span>
               </button>
             ) : (
               <button
@@ -335,7 +357,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                 className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-medium transition-all cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Export Local Backup JSON</span>
+                <span>{isKm ? 'ទាញយកឯកសារបម្រុងទុក JSON' : 'Export Local Backup JSON'}</span>
               </button>
             )}
           </div>
@@ -343,12 +365,18 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
           {/* Backup Import Option */}
           <div className="p-3.5 rounded-xl bg-[#0f1422] border border-slate-800/80 flex items-center justify-between gap-3 text-xs">
             <div className="space-y-0.5">
-              <span className="font-semibold text-slate-300">Have a backup file?</span>
-              <p className="text-[11px] text-slate-400">Import a previously exported JSON backup file</p>
+              <span className="font-semibold text-slate-300">
+                {isKm ? 'តើអ្នកមានឯកសារបម្រុងទុកទេ?' : 'Have a backup file?'}
+              </span>
+              <p className="text-[11px] text-slate-400">
+                {isKm
+                  ? 'បញ្ចូលឯកសារបម្រុងទុក JSON ដែលបាននាំចេញពីមុន'
+                  : 'Import a previously exported JSON backup file'}
+              </p>
             </div>
             <label className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer transition-colors shrink-0">
               <Upload className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Import File</span>
+              <span>{isKm ? 'បញ្ចូលឯកសារ' : 'Import File'}</span>
               <input type="file" accept=".json" onChange={handleFileChange} className="hidden" />
             </label>
           </div>
@@ -361,7 +389,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
             onClick={onClose}
             className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
           >
-            Close
+            {isKm ? 'បិទ' : 'Close'}
           </button>
         </div>
       </div>

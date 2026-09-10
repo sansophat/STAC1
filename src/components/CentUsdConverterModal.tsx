@@ -16,7 +16,7 @@ import {
   Layers,
   ArrowRight,
 } from 'lucide-react';
-import { Trade, Investor } from '../types';
+import { Trade, Investor, Translations } from '../types';
 
 interface CentUsdConverterModalProps {
   isOpen: boolean;
@@ -36,6 +36,7 @@ interface CentUsdConverterModalProps {
     profit_amount: number;
     profit_pct: number;
   }) => void;
+  t?: Translations;
 }
 
 export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
@@ -50,7 +51,9 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
   onBatchConvertAccountTrades,
   onCreateNewTrade,
   onApplyToTrade,
+  t,
 }) => {
+  const isKm = t ? (t.langToggle === 'English' || t.day === 'ថ្ងៃ') : false;
   const [activeTab, setActiveTab] = useState<'real_data' | 'calculator'>('real_data');
 
   // Real data selection state
@@ -344,7 +347,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-heading font-bold text-slate-100">
-                  Cent (USC) ⇄ USD Trade Log Converter
+                  {isKm ? 'ឧបករណ៍បម្លែងកំណត់ត្រាជួញដូរ Cent (USC) ⇄ USD' : 'Cent (USC) ⇄ USD Trade Log Converter'}
                 </h2>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-700 font-mono font-bold flex items-center gap-1">
                   <Coins className="w-3.5 h-3.5 text-yellow-400" />
@@ -352,14 +355,16 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Convert existing recorded Trade Logs or generate new trades based on real recorded account equity.
+                {isKm
+                  ? 'បម្លែងកំណត់ត្រាជួញដូរដែលមានស្រាប់ ឬបង្កើតការជួញដូរថ្មីដោយផ្អែកលើសមតុល្យគណនីពិតជាក់ស្តែង។'
+                  : 'Convert existing recorded Trade Logs or generate new trades based on real recorded account equity.'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-100 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Close"
+            title={isKm ? 'បិទ' : 'Close'}
           >
             <X className="w-5 h-5" />
           </button>
@@ -378,10 +383,10 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
               }`}
             >
               <TrendingUp className="w-4 h-4 text-cyan-400" />
-              <span>Real Trade Log Converter</span>
+              <span>{isKm ? 'កម្មវិធីបម្លែងកំណត់ត្រាជួញដូរពិត' : 'Real Trade Log Converter'}</span>
               {currentAccountTrades.length > 0 && (
                 <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
-                  {currentAccountTrades.length} Trades
+                  {currentAccountTrades.length} {isKm ? 'ការជួញដូរ' : 'Trades'}
                 </span>
               )}
             </button>
@@ -396,12 +401,12 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
               }`}
             >
               <Calculator className="w-4 h-4 text-purple-400" />
-              <span>Manual Calculator & Pip Simulator</span>
+              <span>{isKm ? 'ម៉ាស៊ីនគិតលេខដោយដៃ & ក្លែងធ្វើ Pip' : 'Manual Calculator & Pip Simulator'}</span>
             </button>
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
-            <span>Rate:</span>
+            <span>{isKm ? 'អត្រា៖' : 'Rate:'}</span>
             <span className="text-slate-200 font-semibold">$1.00 = 100¢</span>
             <span>•</span>
             <span className="text-slate-200 font-semibold">1¢ = $0.01</span>
@@ -425,7 +430,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Select Investor Account (Real Data)</span>
+                  <span>{isKm ? 'ជ្រើសរើសគណនីវិនិយោគិន (ទិន្នន័យពិត)' : 'Select Investor Account (Real Data)'}</span>
                 </label>
                 <select
                   value={selectedAccountName}
@@ -437,7 +442,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                 >
                   {accountList.map((acc) => (
                     <option key={acc.name} value={acc.name}>
-                      {acc.name} ({acc.currency} • {acc.tradeCount} trades)
+                      {acc.name} ({acc.currency} • {acc.tradeCount} {isKm ? 'ការជួញដូរ' : 'trades'})
                     </option>
                   ))}
                 </select>
@@ -447,7 +452,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Recorded Source Entry</span>
+                  <span>{isKm ? 'កំណត់ត្រាប្រភពដើម' : 'Recorded Source Entry'}</span>
                 </label>
                 <select
                   value={selectedTradeId}
@@ -455,11 +460,11 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                   className="w-full bg-[#0c111e] border border-slate-800 focus:border-purple-500 rounded-lg px-3 py-2 text-xs text-slate-200 font-medium focus:outline-none cursor-pointer"
                 >
                   <option value="latest">
-                    ⭐ Latest Account Balance ({currentAccountTrades[0] ? `${currentAccountTrades[0].trade_date} - ${currentAccountTrades[0].end_equity.toLocaleString()} ${sourceCurrency}` : 'Initial Baseline'})
+                    ⭐ {isKm ? 'សមតុល្យគណនីចុងក្រោយ' : 'Latest Account Balance'} ({currentAccountTrades[0] ? `${currentAccountTrades[0].trade_date} - ${currentAccountTrades[0].end_equity.toLocaleString()} ${sourceCurrency}` : (isKm ? 'សមតុល្យដំបូង' : 'Initial Baseline')})
                   </option>
                   {currentAccountTrades.map((t, idx) => (
                     <option key={t.id} value={t.id}>
-                      Trade #{currentAccountTrades.length - idx}: {t.trade_date} (End: {t.end_equity.toLocaleString()} {t.currency || sourceCurrency} • Profit: +{t.profit_amount.toLocaleString()})
+                      {isKm ? 'ការជួញដូរ' : 'Trade'} #{currentAccountTrades.length - idx}: {t.trade_date} ({isKm ? 'ចុងក្រោយ' : 'End'}: {t.end_equity.toLocaleString()} {t.currency || sourceCurrency} • {isKm ? 'ចំណេញ' : 'Profit'}: +{t.profit_amount.toLocaleString()})
                     </option>
                   ))}
                 </select>
@@ -470,15 +475,17 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
             <div className="p-4 rounded-xl bg-[#111726] border border-slate-800 space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-300">Conversion Matrix</span>
+                  <span className="text-xs font-semibold text-slate-300">
+                    {isKm ? 'តារាងបម្លែង' : 'Conversion Matrix'}
+                  </span>
                   <span className="text-[11px] text-slate-500 font-mono">
-                    (Multiplier: {factor === 100 ? '×100 USC' : '÷100 USD'})
+                    ({isKm ? (factor === 100 ? 'គុណ ×100 USC' : 'ចែក ÷100 USD') : (factor === 100 ? 'Multiplier: ×100 USC' : 'Multiplier: ÷100 USD')})
                   </span>
                 </div>
 
                 {/* Target Currency Toggle Pill */}
                 <div className="flex items-center gap-1 bg-[#0c111e] p-1 rounded-lg border border-slate-800 text-xs">
-                  <span className="text-[11px] text-slate-400 px-2">Convert to:</span>
+                  <span className="text-[11px] text-slate-400 px-2">{isKm ? 'បម្លែងទៅជា៖' : 'Convert to:'}</span>
                   <button
                     type="button"
                     onClick={() => setTargetCurrency('USD')}
@@ -515,7 +522,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                       ) : (
                         <Coins className="w-4 h-4 text-purple-400" />
                       )}
-                      <span>Real Recorded Entry ({sourceCurrency})</span>
+                      <span>{isKm ? `កំណត់ត្រាពិតដើម (${sourceCurrency})` : `Real Recorded Entry (${sourceCurrency})`}</span>
                     </span>
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
@@ -524,45 +531,45 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                           : 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
                       }`}
                     >
-                      Original {sourceCurrency}
+                      {isKm ? `ប្រភព ${sourceCurrency}` : `Original ${sourceCurrency}`}
                     </span>
                   </div>
 
                   <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between text-slate-400">
-                      <span>Trade Date:</span>
+                      <span>{isKm ? 'កាលបរិច្ឆេទជួញដូរ៖' : 'Trade Date:'}</span>
                       <span className="font-mono text-slate-200">{activeRecord?.trade_date || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Start Balance:</span>
+                      <span>{isKm ? 'សមតុល្យដើម៖' : 'Start Balance:'}</span>
                       <span className="font-mono font-semibold text-slate-200">
                         {activeRecord?.start_equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-slate-400">{sourceCurrency}</span>
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Net Profit:</span>
+                      <span>{isKm ? 'ប្រាក់ចំណេញសុទ្ធ៖' : 'Net Profit:'}</span>
                       <span className="font-mono font-bold text-emerald-400">
                         +{activeRecord?.profit_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-slate-400">{sourceCurrency}</span> ({activeRecord?.profit_pct}%)
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Withdrawn:</span>
+                      <span>{isKm ? 'បានដកប្រាក់៖' : 'Withdrawn:'}</span>
                       <span className="font-mono text-slate-300">
                         {activeRecord?.withdraw.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-slate-400">{sourceCurrency}</span>
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Reinvested:</span>
+                      <span>{isKm ? 'បានវិនិយោគបន្ត៖' : 'Reinvested:'}</span>
                       <span className="font-mono text-slate-300">
                         {activeRecord?.reinvest.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-slate-400">{sourceCurrency}</span>
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-300 pt-1.5 border-t border-slate-800/80">
-                      <span className="font-semibold">End Equity:</span>
+                      <span className="font-semibold">{isKm ? 'សមតុល្យចុងក្រោយ៖' : 'End Equity:'}</span>
                       <span className="font-mono font-extrabold text-cyan-300 text-sm">
                         {activeRecord?.end_equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-xs text-cyan-400">{sourceCurrency}</span>
@@ -580,7 +587,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                       ) : (
                         <Coins className="w-4 h-4 text-purple-400" />
                       )}
-                      <span>Converted Equivalent ({targetCurrency})</span>
+                      <span>{isKm ? `សមមូលក្រោយបម្លែង (${targetCurrency})` : `Converted Equivalent (${targetCurrency})`}</span>
                     </span>
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
@@ -595,41 +602,43 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
 
                   <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between text-slate-400">
-                      <span>Unit Value:</span>
+                      <span>{isKm ? 'តម្លៃឯកតា៖' : 'Unit Value:'}</span>
                       <span className="font-mono text-cyan-300">
-                        {targetCurrency === 'USC' ? '100 USC Cents per Dollar' : '$0.01 USD per Cent'}
+                        {targetCurrency === 'USC'
+                          ? (isKm ? '100 សេន USC ក្នុង 1 ដុល្លារ' : '100 USC Cents per Dollar')
+                          : (isKm ? '$0.01 USD ក្នុង 1 សេន' : '$0.01 USD per Cent')}
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Converted Start:</span>
+                      <span>{isKm ? 'ដើមទុនក្រោយបម្លែង៖' : 'Converted Start:'}</span>
                       <span className="font-mono font-semibold text-slate-100">
                         {convertedData.start_equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-cyan-400 font-bold">{targetCurrency}</span>
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Converted Profit:</span>
+                      <span>{isKm ? 'ប្រាក់ចំណេញក្រោយបម្លែង៖' : 'Converted Profit:'}</span>
                       <span className="font-mono font-bold text-emerald-400">
                         +{convertedData.profit_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-cyan-400 font-bold">{targetCurrency}</span> ({convertedData.profit_pct}%)
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Converted Withdrawn:</span>
+                      <span>{isKm ? 'ដកប្រាក់ក្រោយបម្លែង៖' : 'Converted Withdrawn:'}</span>
                       <span className="font-mono text-slate-200">
                         {convertedData.withdraw.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-cyan-400">{targetCurrency}</span>
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>Converted Reinvested:</span>
+                      <span>{isKm ? 'វិនិយោគបន្តក្រោយបម្លែង៖' : 'Converted Reinvested:'}</span>
                       <span className="font-mono text-slate-200">
                         {convertedData.reinvest.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-[10px] text-cyan-400">{targetCurrency}</span>
                       </span>
                     </div>
                     <div className="flex justify-between text-slate-200 pt-1.5 border-t border-slate-800/80">
-                      <span className="font-semibold text-cyan-200">Converted End Equity:</span>
+                      <span className="font-semibold text-cyan-200">{isKm ? 'សមតុល្យចុងក្រោយក្រោយបម្លែង៖' : 'Converted End Equity:'}</span>
                       <span className="font-mono font-extrabold text-cyan-300 text-sm">
                         {convertedData.end_equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
                         <span className="text-xs text-cyan-400">{targetCurrency}</span>
@@ -641,7 +650,9 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
 
               {/* Action Buttons with Real Data */}
               <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
-                <div className="text-[11px] font-semibold text-slate-400">Available Actions with Converted Data:</div>
+                <div className="text-[11px] font-semibold text-slate-400">
+                  {isKm ? 'សកម្មភាពដែលអាចធ្វើបានជាមួយទិន្នន័យបម្លែង៖' : 'Available Actions with Converted Data:'}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* Action 1: Create New Trade based on converted real data */}
                   <button
@@ -652,10 +663,12 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                     <div>
                       <span className="font-bold text-xs text-cyan-300 group-hover:text-cyan-200 flex items-center gap-1.5">
                         <PlusCircle className="w-4 h-4 text-cyan-400" />
-                        <span>Create New Trade with Converted Data</span>
+                        <span>{isKm ? 'បង្កើតការជួញដូរថ្មីដោយប្រើទិន្នន័យបម្លែង' : 'Create New Trade with Converted Data'}</span>
                       </span>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        Opens Add Trade form using start balance {convertedData.end_equity.toLocaleString()} {targetCurrency}
+                        {isKm
+                          ? `បើកទម្រង់បញ្ចូលការជួញដូរដោយប្រើដើមទុន ${convertedData.end_equity.toLocaleString()} ${targetCurrency}`
+                          : `Opens Add Trade form using start balance ${convertedData.end_equity.toLocaleString()} ${targetCurrency}`}
                       </p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
@@ -675,10 +688,12 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                     <div>
                       <span className="font-bold text-xs text-purple-300 group-hover:text-purple-200 flex items-center gap-1.5">
                         <RefreshCw className="w-4 h-4 text-purple-400" />
-                        <span>Update Selected Trade in Log</span>
+                        <span>{isKm ? 'ធ្វើបច្ចុប្បន្នភាពការជួញដូរនេះក្នុងបញ្ជី' : 'Update Selected Trade in Log'}</span>
                       </span>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        Replaces this trade's values with {targetCurrency} units in database
+                        {isKm
+                          ? `ជំនួសតម្លៃនៃការជួញដូរនេះជាមួយឯកតា ${targetCurrency} ក្នុងមូលដ្ឋានទិន្នន័យ`
+                          : `Replaces this trade's values with ${targetCurrency} units in database`}
                       </p>
                     </div>
                     <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0 ml-2" />
@@ -691,7 +706,9 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                     <div className="flex items-center gap-2">
                       <Layers className="w-4 h-4 text-cyan-400" />
                       <span className="text-slate-300">
-                        Batch convert all <strong className="text-cyan-300">{currentAccountTrades.length} trades</strong> of {selectedAccountName} to {targetCurrency}?
+                        {isKm
+                          ? <>បម្លែងការជួញដូរទាំងអស់ចំនួន <strong className="text-cyan-300">{currentAccountTrades.length} ការជួញដូរ</strong> របស់ {selectedAccountName} ទៅជា {targetCurrency}?</>
+                          : <>Batch convert all <strong className="text-cyan-300">{currentAccountTrades.length} trades</strong> of {selectedAccountName} to {targetCurrency}?</>}
                       </span>
                     </div>
                     <button
@@ -699,7 +716,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                       onClick={handleBatchConvertAccount}
                       className="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold cursor-pointer transition-colors"
                     >
-                      Convert All ({targetCurrency})
+                      {isKm ? `បម្លែងទាំងអស់ (${targetCurrency})` : `Convert All (${targetCurrency})`}
                     </button>
                   </div>
                 )}
@@ -716,7 +733,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                   <Calculator className="w-4 h-4 text-cyan-400" />
-                  <span>Bidirectional Live Calculator</span>
+                  <span>{isKm ? 'ម៉ាស៊ីនគិតលេខបម្លែងទៅមកផ្ទាល់' : 'Bidirectional Live Calculator'}</span>
                 </span>
                 {activeRecord && (
                   <button
@@ -725,7 +742,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                     className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 hover:underline cursor-pointer"
                   >
                     <TrendingUp className="w-3.5 h-3.5" />
-                    <span>Load Real Equity: {activeRecord.end_equity.toLocaleString()} {sourceCurrency}</span>
+                    <span>{isKm ? `ផ្ទុកសមតុល្យពិត៖ ${activeRecord.end_equity.toLocaleString()} ${sourceCurrency}` : `Load Real Equity: ${activeRecord.end_equity.toLocaleString()} ${sourceCurrency}`}</span>
                   </button>
                 )}
               </div>
@@ -736,16 +753,16 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
                       <DollarSign className="w-4 h-4" />
-                      Standard Dollar (USD $)
+                      {isKm ? 'គណនីដុល្លារស្តង់ដារ (USD $)' : 'Standard Dollar (USD $)'}
                     </label>
                     <button
                       type="button"
                       onClick={() => copyToClipboard(usdInput, 'usd')}
                       className="text-[11px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-                      title="Copy USD value"
+                      title={isKm ? 'ចម្លងតម្លៃ USD' : 'Copy USD value'}
                     >
                       {copiedKey === 'usd' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      {copiedKey === 'usd' ? 'Copied' : 'Copy'}
+                      {copiedKey === 'usd' ? (isKm ? 'បានចម្លង' : 'Copied') : (isKm ? 'ចម្លង' : 'Copy')}
                     </button>
                   </div>
                   <div className="relative">
@@ -767,16 +784,16 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
                       <Coins className="w-4 h-4" />
-                      Cent Account (USC ¢)
+                      {isKm ? 'គណនីសេន (USC ¢)' : 'Cent Account (USC ¢)'}
                     </label>
                     <button
                       type="button"
                       onClick={() => copyToClipboard(uscInput, 'usc')}
                       className="text-[11px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-                      title="Copy USC value"
+                      title={isKm ? 'ចម្លងតម្លៃ USC' : 'Copy USC value'}
                     >
                       {copiedKey === 'usc' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      {copiedKey === 'usc' ? 'Copied' : 'Copy'}
+                      {copiedKey === 'usc' ? (isKm ? 'បានចម្លង' : 'Copied') : (isKm ? 'ចម្លង' : 'Copy')}
                     </button>
                   </div>
                   <div className="relative">
@@ -796,7 +813,9 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
 
               {/* Quick Preset Buttons */}
               <div>
-                <span className="text-[11px] text-slate-400 block mb-1.5 font-medium">Quick Presets:</span>
+                <span className="text-[11px] text-slate-400 block mb-1.5 font-medium">
+                  {isKm ? 'ជម្រើសគំរូរហ័ស៖' : 'Quick Presets:'}
+                </span>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { usd: 10, label: '$10 = 1,000 USC' },
@@ -849,7 +868,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                   }}
                   className="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/30 transition-colors cursor-pointer"
                 >
-                  Create Trade as USD (${usdInput})
+                  {isKm ? `បង្កើតការជួញដូរជា USD ($${usdInput})` : `Create Trade as USD ($${usdInput})`}
                 </button>
                 <button
                   type="button"
@@ -875,7 +894,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                   }}
                   className="px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs font-semibold hover:bg-purple-500/30 transition-colors cursor-pointer"
                 >
-                  Create Trade as Cent ({uscInput} USC)
+                  {isKm ? `បង្កើតការជួញដូរជា Cent (${uscInput} USC)` : `Create Trade as Cent (${uscInput} USC)`}
                 </button>
               </div>
             </div>
@@ -884,12 +903,14 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
             <div className="p-4 rounded-xl bg-[#111726] border border-slate-800 space-y-3">
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
                 <Calculator className="w-4 h-4 text-cyan-400" />
-                <span>Broker Pip Value & Lot Size Comparison (Gold XAUUSD)</span>
+                <span>{isKm ? 'ការប្រៀបធៀបតម្លៃ Pip និងទំហំ Lot (មាស XAUUSD)' : 'Broker Pip Value & Lot Size Comparison (Gold XAUUSD)'}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/60 p-3 rounded-lg border border-slate-800/80">
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Simulate Lot Size</label>
+                  <label className="text-[11px] text-slate-400 block mb-1">
+                    {isKm ? 'ក្លែងធ្វើទំហំ Lot' : 'Simulate Lot Size'}
+                  </label>
                   <select
                     value={simLot}
                     onChange={(e) => setSimLot(parseFloat(e.target.value))}
@@ -904,17 +925,19 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">Simulate Pips Movement</label>
+                  <label className="text-[11px] text-slate-400 block mb-1">
+                    {isKm ? 'ក្លែងធ្វើចលនា Pips' : 'Simulate Pips Movement'}
+                  </label>
                   <select
                     value={simPips}
                     onChange={(e) => setSimPips(parseInt(e.target.value, 10))}
                     className="w-full bg-[#111726] border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none cursor-pointer"
                   >
-                    <option value={10}>10 Pips (Quick Scalp)</option>
+                    <option value={10}>{isKm ? '10 Pips (ស្កាល់រហ័ស)' : '10 Pips (Quick Scalp)'}</option>
                     <option value={25}>25 Pips</option>
-                    <option value={50}>50 Pips (Intraday)</option>
+                    <option value={50}>{isKm ? '50 Pips (ក្នុងថ្ងៃ)' : '50 Pips (Intraday)'}</option>
                     <option value={100}>100 Pips</option>
-                    <option value={200}>200 Pips (DCA Swing)</option>
+                    <option value={200}>{isKm ? '200 Pips (DCA វែង)' : '200 Pips (DCA Swing)'}</option>
                   </select>
                 </div>
               </div>
@@ -923,27 +946,27 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
                 <div className="p-3 rounded-lg bg-slate-900/40 border border-emerald-500/20 space-y-1">
                   <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
                     <DollarSign className="w-3.5 h-3.5" />
-                    Standard USD Account
+                    {isKm ? 'គណនី USD ស្តង់ដារ' : 'Standard USD Account'}
                   </span>
                   <div className="font-mono text-sm font-bold text-slate-100">
                     +${standardProfitUsd.toFixed(2)} USD
                   </div>
                   <p className="text-[10px] text-slate-400">
-                    1 Pip with 0.01 lot = $0.10 USD
+                    {isKm ? '1 Pip ជាមួយ 0.01 lot = $0.10 USD' : '1 Pip with 0.01 lot = $0.10 USD'}
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-slate-900/40 border border-purple-500/20 space-y-1">
                   <span className="text-[11px] font-semibold text-purple-400 flex items-center gap-1">
                     <Coins className="w-3.5 h-3.5" />
-                    Cent Account (USC)
+                    {isKm ? 'គណនី Cent (USC)' : 'Cent Account (USC)'}
                   </span>
                   <div className="font-mono text-sm font-bold text-slate-100">
                     +{centProfitUsc.toFixed(2)} USC{' '}
                     <span className="text-xs text-slate-400 font-normal">(≈ ${centProfitInUsd.toFixed(4)} USD)</span>
                   </div>
                   <p className="text-[10px] text-slate-400">
-                    1 Pip with 0.01 lot = 0.10 USC (≈ $0.001 USD)
+                    {isKm ? '1 Pip ជាមួយ 0.01 lot = 0.10 USC (≈ $0.001 USD)' : '1 Pip with 0.01 lot = 0.10 USC (≈ $0.001 USD)'}
                   </p>
                 </div>
               </div>
@@ -955,9 +978,13 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
         <div className="flex items-start gap-2.5 p-3 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-xs text-slate-300">
           <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-semibold text-cyan-300">Real Data Conversion Rule: 1 USD = 100 Cents</p>
+            <p className="font-semibold text-cyan-300">
+              {isKm ? 'ក្បួនបម្លែងទិន្នន័យពិត៖ 1 USD = 100 Cents' : 'Real Data Conversion Rule: 1 USD = 100 Cents'}
+            </p>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              When converting a real trade log from USD to Cent (USC), all equity amounts and profits are multiplied by 100 while percentage returns remain identical. To convert Cent to USD, amounts are divided by 100.
+              {isKm
+                ? 'នៅពេលបម្លែងកំណត់ត្រាជួញដូរពិតពី USD ទៅ Cent (USC) ទំហំដើមទុន និងប្រាក់ចំណេញទាំងអស់ត្រូវគុណនឹង 100 ខណៈដែលភាគរយផលចំណេញនៅដដែល។ ដើម្បីបម្លែង Cent ទៅ USD ទឹកប្រាក់ត្រូវចែកនឹង 100។'
+                : 'When converting a real trade log from USD to Cent (USC), all equity amounts and profits are multiplied by 100 while percentage returns remain identical. To convert Cent to USD, amounts are divided by 100.'}
             </p>
           </div>
         </div>
@@ -969,7 +996,7 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
           >
-            Close Converter
+            {isKm ? 'បិទកម្មវិធីបម្លែង' : 'Close Converter'}
           </button>
         </div>
       </div>

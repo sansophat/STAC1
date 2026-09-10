@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Trade, Investor, Translations } from '../types';
+import { Trade, Investor, Translations, BrandingConfig } from '../types';
 import { calculateLotSize } from '../utils/simulation';
 import { CentUsdConverterModal } from './CentUsdConverterModal';
+import { DailySummaryExportModal } from './DailySummaryExportModal';
 import { safeStorage } from '../utils/safeStorage';
 import {
   ClipboardList,
@@ -35,6 +36,8 @@ import {
   BarChart3,
   CheckCheck,
   Cloud,
+  FileImage,
+  Share2,
 } from 'lucide-react';
 import { DEMO_TRADE_IDS } from '../lib/firebaseSync';
 
@@ -48,6 +51,7 @@ interface TradeLogViewProps {
   initialSelectedAccount?: string;
   onOpenCloudSync?: () => void;
   onPurgeDemoData?: () => void;
+  branding?: BrandingConfig;
 }
 
 const getTodayDateStr = (): string => {
@@ -106,7 +110,10 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
   initialSelectedAccount,
   onOpenCloudSync,
   onPurgeDemoData,
+  branding,
 }) => {
+  const isKm = t.langToggle === 'English' || t.day === 'ថ្ងៃ';
+
   const [selectedAccount, setSelectedAccount] = useState<string>(() => {
     if (initialSelectedAccount && initialSelectedAccount !== 'General Account') {
       return initialSelectedAccount;
@@ -124,6 +131,15 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
     const saved = safeStorage.getItem('snl_trade_date_mode');
     return saved === 'dddd' ? 'dddd' : 'ddd';
   });
+
+  // Daily Summary Export Modal (JPG & PDF)
+  const [dailySummaryModalOpen, setDailySummaryModalOpen] = useState(false);
+  const [dailySummaryInitialDate, setDailySummaryInitialDate] = useState<string | undefined>();
+
+  const handleOpenDailySummaryModal = (dateStr?: string) => {
+    setDailySummaryInitialDate(dateStr);
+    setDailySummaryModalOpen(true);
+  };
 
   // Cent (USC) vs USD Currency Utilities & State
   const [converterModalOpen, setConverterModalOpen] = useState(false);
@@ -1120,6 +1136,16 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Daily Summary (JPG / PDF) Team Report Launcher */}
+          <button
+            onClick={() => handleOpenDailySummaryModal()}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600/30 to-cyan-600/30 hover:from-blue-600/45 hover:to-cyan-600/45 border border-cyan-500/40 text-cyan-200 hover:text-white text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium shadow-xs"
+            title="Generate and Download Daily Performance Summary as JPG or PDF to send to your team"
+          >
+            <FileImage className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Daily Summary (JPG/PDF)</span>
+          </button>
+
           {/* Cloud Sync Button */}
           {onOpenCloudSync && (
             <button
@@ -2136,6 +2162,16 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
                               title={`Add another trade execution for ${day.dateStr} starting at ${day.endEquity.toFixed(2)}`}
                             >
                               <Plus className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Export Daily Summary (JPG / PDF) for this specific day */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDailySummaryModal(day.dateStr)}
+                              className="p-1 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer"
+                              title={`Export ${day.dateStr} daily performance report as JPG or PDF`}
+                            >
+                              <FileImage className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -3194,7 +3230,7 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
                     >
                       <span className="flex items-center gap-1.5 font-semibold">
                         <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Open in Full Cent / USD Trade Log Converter</span>
+                        <span>{isKm ? 'បើកកម្មវិធីបម្លែង Cent / USD ពេញលេញ' : 'Open in Full Cent / USD Trade Log Converter'}</span>
                       </span>
                       <span className="text-[10px] font-mono text-cyan-400/80">1 USD = 100 USC →</span>
                     </button>
@@ -3209,7 +3245,7 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
                 onClick={() => setCurrencySwitchModalTrade(null)}
                 className="px-4 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs hover:bg-slate-800 cursor-pointer"
               >
-                Cancel
+                {t.cancel || (isKm ? 'បោះបង់' : 'Cancel')}
               </button>
             </div>
           </div>
@@ -3222,6 +3258,7 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
         onClose={() => setConverterModalOpen(false)}
         trades={trades}
         investors={investors}
+        t={t}
         initialSelectedAccount={
           currencySwitchModalTrade ? currencySwitchModalTrade.investor_name : selectedAccount !== 'all' ? selectedAccount : undefined
         }
@@ -3243,6 +3280,18 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
             setModalOpen(true);
           }
         }}
+      />
+
+      {/* Daily Summary Export Modal (JPG & PDF) */}
+      <DailySummaryExportModal
+        isOpen={dailySummaryModalOpen}
+        onClose={() => setDailySummaryModalOpen(false)}
+        trades={trades}
+        investors={investors}
+        initialDate={dailySummaryInitialDate}
+        initialAccount={selectedAccount}
+        branding={branding}
+        t={t}
       />
     </div>
   );

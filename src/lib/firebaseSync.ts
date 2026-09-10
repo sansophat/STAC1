@@ -177,6 +177,24 @@ export async function purgeCloudDemoRecords(): Promise<{ tradesDeleted: number; 
   return { tradesDeleted, investorsDeleted };
 }
 
+// Sanitize branding configuration for Firestore storage
+// Firestore document maximum limit is 1,048,576 bytes (1 MB).
+// Oversized raw base64 images and heavy data must be omitted from the cloud document.
+function sanitizeBrandingForCloud(branding?: BrandingConfig): any {
+  if (!branding) return null;
+  const copy: any = { ...branding };
+
+  // Strip any large base64 data URLs or long strings (> 5,000 characters)
+  for (const key of Object.keys(copy)) {
+    if (typeof copy[key] === 'string') {
+      if (copy[key].startsWith('data:image') || copy[key].length > 5000) {
+        delete copy[key];
+      }
+    }
+  }
+  return copy;
+}
+
 // Completely upload current local state to cloud and purge any stale/demo docs
 export async function replaceCloudWithLocalData(payload: {
   trades: Trade[];
@@ -247,19 +265,50 @@ export async function replaceCloudWithLocalData(payload: {
     await batch.commit();
   }
 
-  // 3. Save global settings
-  const settingsRef = doc(db, APP_SETTINGS_COLLECTION, 'global_state');
-  await setDoc(
-    settingsRef,
-    {
+  // 3. Save global settings (safely guarded against 1MB Firestore document limit)
+  try {
+    const settingsRef = doc(db, APP_SETTINGS_COLLECTION, 'global_state');
+    const sanitizedBranding = sanitizeBrandingForCloud(payload.branding);
+    const lightweightSims = (payload.recentSimulations || []).slice(0, 5).map((s) => ({
+      id: s.id,
+      timestamp: s.timestamp,
+      projectName: s.projectName,
+      initialCapital: s.initialCapital,
+      finalCapital: s.finalCapital,
+      netProfit: s.netProfit,
+      growthPct: s.growthPct,
+      days: s.days,
+      tradingDays: s.tradingDays,
+      investorName: s.investorName,
+    }));
+
+    const docData: any = {
       updated_at: new Date().toISOString(),
       params: payload.params || null,
-      branding: payload.branding || null,
+      branding: sanitizedBranding,
       historyCount: payload.history?.length || 0,
-      recentSimulations: payload.recentSimulations || [],
-    },
-    { merge: true }
-  );
+      recentSimulations: lightweightSims,
+    };
+
+    // Safely verify document size is well under Firestore's 1MB limit (e.g. max 500KB)
+    try {
+      const approxBytes = new TextEncoder().encode(JSON.stringify(docData)).length;
+      if (approxBytes > 500000) {
+        delete docData.recentSimulations;
+        docData.branding = { brandName: payload.branding?.brandName || 'SNL AI DCA Future Trade' };
+      }
+    } catch {
+      // ignore
+    }
+
+    await setDoc(settingsRef, docData, { merge: true });
+  } catch (settingsError) {
+    console.warn(
+      'Could not save global_state settings document to cloud (exceeds size limit or restricted):',
+      settingsError
+    );
+    // Non-fatal: All trades and investors were already successfully saved to Firestore!
+  }
 }
 
 // Batch upload all local trades & investors to Firestore

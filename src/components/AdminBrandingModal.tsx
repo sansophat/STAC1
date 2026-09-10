@@ -84,19 +84,59 @@ export const AdminBrandingModal: React.FC<AdminBrandingModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image file must be under 2MB.');
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Image file must be under 8MB.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setFormConfig({
-        ...formConfig,
-        logoType: 'image',
-        logoImage: base64,
-      });
+      const rawSrc = event.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 256;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/png');
+          setFormConfig({
+            ...formConfig,
+            logoType: 'image',
+            logoImage: compressed,
+          });
+        } else {
+          setFormConfig({
+            ...formConfig,
+            logoType: 'image',
+            logoImage: rawSrc,
+          });
+        }
+      };
+      img.onerror = () => {
+        setFormConfig({
+          ...formConfig,
+          logoType: 'image',
+          logoImage: rawSrc,
+        });
+      };
+      img.src = rawSrc;
     };
     reader.readAsDataURL(file);
   };

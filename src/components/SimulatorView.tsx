@@ -73,6 +73,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   onOpenRecentSessions,
   recentSessionsCount = 0,
 }) => {
+  const isKm = t.langToggle === 'English' || t.day === 'ថ្ងៃ';
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [chartTab, setChartTab] = useState<'equity' | 'profit'>('equity');
 
@@ -196,7 +197,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-medium transition-all cursor-pointer"
               >
                 <History className="w-3 h-3 text-slate-400" />
-                <span>Snapshots {recentSessionsCount > 0 ? `(${recentSessionsCount})` : ''}</span>
+                <span>{isKm ? 'រូបថតសង្ខេប' : 'Snapshots'} {recentSessionsCount > 0 ? `(${recentSessionsCount})` : ''}</span>
               </button>
             )}
           </div>
@@ -209,10 +210,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-purple-400 animate-pulse"></span>
             <span className="text-xs text-purple-300">
-              Active Investor Profile: <strong className="text-purple-200">{activeInvestorName}</strong>
+              {isKm ? 'ប្រវត្តិរូបវិនិយោគិនសកម្ម៖' : 'Active Investor Profile:'} <strong className="text-purple-200">{activeInvestorName}</strong>
             </span>
           </div>
-          <span className="text-[11px] text-purple-400/80">Custom settings applied to simulator</span>
+          <span className="text-[11px] text-purple-400/80">{isKm ? 'ការកំណត់ផ្ទាល់ខ្លួនត្រូវបានអនុវត្តទៅលើការសម្រង់' : 'Custom settings applied to simulator'}</span>
         </div>
       )}
 
@@ -373,13 +374,13 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 <div className="flex items-center justify-between text-[11px]">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                    <span className="text-slate-400">Withdraw: <strong className="text-cyan-300">{params.withdrawPct}%</strong></span>
+                    <span className="text-slate-400">{isKm ? 'ដកប្រាក់៖' : 'Withdraw:'} <strong className="text-cyan-300">{params.withdrawPct}%</strong></span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-purple-400"></span>
-                    <span className="text-slate-400">Reinvest: <strong className="text-purple-300">{params.reinvestPct}%</strong></span>
+                    <span className="text-slate-400">{isKm ? 'វិនិយោគបន្ត៖' : 'Reinvest:'} <strong className="text-purple-300">{params.reinvestPct}%</strong></span>
                   </div>
-                  <span className="text-[10px] font-mono text-slate-500">Total: 100%</span>
+                  <span className="text-[10px] font-mono text-slate-500">{isKm ? 'សរុប៖ 100%' : 'Total: 100%'}</span>
                 </div>
 
                 {/* Split Visual Progress */}
@@ -396,13 +397,13 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
 
                 {/* Quick Split Buttons */}
                 <div className="flex items-center gap-1.5 pt-0.5">
-                  <span className="text-[10px] text-slate-500 mr-1">Split:</span>
+                  <span className="text-[10px] text-slate-500 mr-1">{isKm ? 'បែងចែក៖' : 'Split:'}</span>
                   {[
-                    { label: '100% Reinvest', w: 0, r: 100 },
+                    { label: isKm ? 'វិនិយោគបន្ត 100%' : '100% Reinvest', w: 0, r: 100 },
                     { label: '30W / 70R', w: 30, r: 70 },
                     { label: '50 / 50', w: 50, r: 50 },
                     { label: '70W / 30R', w: 70, r: 30 },
-                    { label: '100% Withdraw', w: 100, r: 0 },
+                    { label: isKm ? 'ដកប្រាក់ 100%' : '100% Withdraw', w: 100, r: 0 },
                   ].map((preset) => {
                     const isActive = params.withdrawPct === preset.w && params.reinvestPct === preset.r;
                     return (
@@ -599,10 +600,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
                   : 'bg-slate-900 border-slate-800 hover:border-purple-500/40 text-purple-300 hover:text-purple-200'
               }`}
-              title="Save to History"
+              title={isKm ? 'រក្សាទុកទៅក្នុងប្រវត្តិ' : 'Save to History'}
             >
               {saveSuccess ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5" />}
-              <span>{saveSuccess ? 'Saved!' : t.saveResult}</span>
+              <span>{saveSuccess ? (isKm ? 'បានរក្សាទុក!' : 'Saved!') : t.saveResult}</span>
             </button>
 
             <button
@@ -701,7 +702,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-200">
-                  {chartTab === 'equity' ? 'Equity Growth & Withdrawals' : 'Daily Profit Distribution'}
+                  {chartTab === 'equity' ? (isKm ? 'កំណើនសមតុល្យ & ការដកប្រាក់' : 'Equity Growth & Withdrawals') : (isKm ? 'ការបែងចែកប្រាក់ចំណេញប្រចាំថ្ងៃ' : 'Daily Profit Distribution')}
                 </span>
               </div>
               <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px]">
@@ -713,7 +714,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Growth Curve
+                  {isKm ? 'ខ្សែក្រាហ្វិកកំណើន' : 'Growth Curve'}
                 </button>
                 <button
                   onClick={() => setChartTab('profit')}
@@ -723,7 +724,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Daily Profit
+                  {isKm ? 'ប្រាក់ចំណេញប្រចាំថ្ងៃ' : 'Daily Profit'}
                 </button>
               </div>
             </div>
@@ -758,7 +759,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                     <Area
                       type="monotone"
                       dataKey="equity"
-                      name="End Equity ($)"
+                      name={isKm ? 'ទុនចុងក្រោយ ($)' : 'End Equity ($)'}
                       stroke="#70d6ff"
                       strokeWidth={2}
                       fillOpacity={1}
@@ -767,7 +768,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                     <Area
                       type="monotone"
                       dataKey="cumWithdraw"
-                      name="Cum. Withdrawn ($)"
+                      name={isKm ? 'បានដកសរុប ($)' : 'Cum. Withdrawn ($)'}
                       stroke="#64dfdf"
                       strokeWidth={1.5}
                       fillOpacity={1}
@@ -789,8 +790,8 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                       formatter={(val: any) => [`$${Number(val).toLocaleString()}`, '']}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                    <Bar dataKey="profit" name="Daily Profit ($)" fill="#10b981" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="withdraw" name="Daily Withdraw ($)" fill="#06b6d4" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="profit" name={isKm ? 'ចំណេញប្រចាំថ្ងៃ ($)' : 'Daily Profit ($)'} fill="#10b981" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="withdraw" name={isKm ? 'ដកប្រាក់ប្រចាំថ្ងៃ ($)' : 'Daily Withdraw ($)'} fill="#06b6d4" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 )}
               </ResponsiveContainer>
@@ -805,7 +806,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
                   {t.scalingMilestones} ({result.scalingLog.length})
                 </span>
-                <span className="text-[10px] text-slate-400">Auto Lot Increases</span>
+                <span className="text-[10px] text-slate-400">{isKm ? 'ការដំឡើង Lot ស្វ័យប្រវត្តិ' : 'Auto Lot Increases'}</span>
               </div>
               <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 text-xs font-mono">
                 {result.scalingLog.map((log, idx) => (
@@ -832,16 +833,16 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
               </h3>
               {result.summary.excludeWeekends && (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Mon–Fri Only
+                  {isKm ? 'ចន្ទ–សុក្រ ប៉ុណ្ណោះ' : 'Mon–Fri Only'}
                 </span>
               )}
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              {result.summary.startDate} to {result.summary.endDate} • <strong className="text-cyan-300">{result.summary.tradingDays || result.summary.days} {t.tradingDaysLabel}</strong> ({result.summary.calendarDays || result.summary.days} {t.calendarDaysLabel})
+              {result.summary.startDate} {isKm ? 'ដល់' : 'to'} {result.summary.endDate} • <strong className="text-cyan-300">{result.summary.tradingDays || result.summary.days} {t.tradingDaysLabel}</strong> ({result.summary.calendarDays || result.summary.days} {t.calendarDaysLabel})
             </p>
           </div>
           <div className="text-right">
-            <span className="text-xs text-slate-400">Final Balance: </span>
+            <span className="text-xs text-slate-400">{isKm ? 'សមតុល្យចុងក្រោយ៖ ' : 'Final Balance: '}</span>
             <span className="text-sm font-mono font-bold text-emerald-400">
               ${result.summary.finalCapital.toLocaleString(undefined, { minimumFractionDigits: 2 })} USDT
             </span>
@@ -870,7 +871,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   key={row.day}
                   className="hover:bg-slate-800/30 transition-colors"
                 >
-                  <td className="py-2 px-3 text-slate-400">Day {row.day}</td>
+                  <td className="py-2 px-3 text-slate-400">{isKm ? `ថ្ងៃទី ${row.day}` : `Day ${row.day}`}</td>
                   <td className="py-2 px-3">
                     <span className="text-slate-200">{row.date}</span>
                     {row.dayOfWeek && (

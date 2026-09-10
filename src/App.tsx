@@ -693,6 +693,7 @@ export function App() {
             t={t}
             onOpenCloudSync={() => setIsCloudSyncModalOpen(true)}
             onPurgeDemoData={handlePurgeDemoData}
+            branding={branding}
           />
         )}
 

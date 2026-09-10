@@ -34,6 +34,7 @@ interface SpreadsheetViewProps {
 }
 
 export const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({ t }) => {
+  const isKm = t.langToggle === 'English' || t.day === 'ថ្ងៃ';
   const [inputs, setInputs] = useState<GoldSpreadsheetInputs>(() => {
     return safeStorage.getJSON<GoldSpreadsheetInputs>('snl_spreadsheet_inputs', DEFAULT_GOLD_SPREADSHEET_INPUTS);
   });
@@ -74,8 +75,8 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
 
   const presets: { name: string; desc: string; values: Partial<GoldSpreadsheetInputs> }[] = [
     {
-      name: 'Original Formula ($12,022)',
-      desc: '30% Threshold, 500 Max Pos, 11.5% Target, 0.01 Lot',
+      name: isKm ? 'រូបមន្តដើម ($12,022)' : 'Original Formula ($12,022)',
+      desc: isKm ? 'ហានិភ័យ 30%, កូតា 500, គោលដៅ 11.5%, Lot 0.01' : '30% Threshold, 500 Max Pos, 11.5% Target, 0.01 Lot',
       values: {
         balance: 12022.0,
         thresholdPct: 30.0,
@@ -86,8 +87,8 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
       },
     },
     {
-      name: '$5,000 Scaling Account',
-      desc: '25% Threshold ($1,250), 250 Max Pos, 10% Target ($500), 0.01 Lot',
+      name: isKm ? 'គណនីពង្រីក $5,000' : '$5,000 Scaling Account',
+      desc: isKm ? 'ហានិភ័យ 25% ($1,250), កូតា 250, គោលដៅ 10% ($500), Lot 0.01' : '25% Threshold ($1,250), 250 Max Pos, 10% Target ($500), 0.01 Lot',
       values: {
         balance: 5000.0,
         thresholdPct: 25.0,
@@ -98,8 +99,8 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
       },
     },
     {
-      name: '$20,000 Pro Account',
-      desc: '30% Threshold ($6,000), 1000 Max Pos, 12% Target ($2,400), 0.02 Lot',
+      name: isKm ? 'គណនី Pro $20,000' : '$20,000 Pro Account',
+      desc: isKm ? 'ហានិភ័យ 30% ($6,000), កូតា 1000, គោលដៅ 12% ($2,400), Lot 0.02' : '30% Threshold ($6,000), 1000 Max Pos, 12% Target ($2,400), 0.02 Lot',
       values: {
         balance: 20000.0,
         thresholdPct: 30.0,
@@ -110,8 +111,8 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
       },
     },
     {
-      name: 'Conservative 15% Risk',
-      desc: '15% Threshold, 300 Max Pos, 8% Target, 0.01 Lot',
+      name: isKm ? 'ហានិភ័យទាប 15%' : 'Conservative 15% Risk',
+      desc: isKm ? 'ហានិភ័យ 15%, កូតា 300, គោលដៅ 8%, Lot 0.01' : '15% Threshold, 300 Max Pos, 8% Target, 0.01 Lot',
       values: {
         balance: 10000.0,
         thresholdPct: 15.0,
@@ -134,14 +135,16 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-heading font-bold text-xl text-slate-100 flex items-center gap-2">
-                <span>Gold Formula Calculation Sheet</span>
+                <span>{isKm ? 'សន្លឹកគណនារូបមន្តមាស' : 'Gold Formula Calculation Sheet'}</span>
                 <span className="text-[11px] bg-yellow-400 text-slate-950 font-bold px-2 py-0.5 rounded-md font-mono">
-                  LIVE MODEL
+                  {isKm ? 'គំរូផ្ទាល់' : 'LIVE MODEL'}
                 </span>
               </h1>
             </div>
             <p className="text-xs text-slate-400">
-              Interactive spreadsheet engine: Balance, Threshold Risk %, Max Position count, Target %, Lot size, Reverse &amp; Equity calculations.
+              {isKm
+                ? 'ប្រព័ន្ធគណនាសន្លឹកកិច្ចការអន្តរកម្ម៖ សមតុល្យ, ភាគរយហានិភ័យ Threshold, ចំនួន Position អតិបរមា, ភាគរយគោលដៅ, ទំហំ Lot, ការគណនា Reverse & Equity'
+                : 'Interactive spreadsheet engine: Balance, Threshold Risk %, Max Position count, Target %, Lot size, Reverse & Equity calculations.'}
             </p>
           </div>
         </div>
@@ -153,7 +156,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium shadow-sm"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied!' : 'Copy Summary'}</span>
+            <span>{copied ? (isKm ? 'បានចម្លង!' : 'Copied!') : (isKm ? 'ចម្លងសង្ខេប' : 'Copy Summary')}</span>
           </button>
 
           <button
@@ -161,7 +164,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             className="flex items-center gap-1.5 bg-slate-900 hover:bg-amber-950/40 border border-slate-800 hover:border-amber-500/40 text-amber-300 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer font-medium shadow-sm"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
+            <span>{isKm ? 'ទាញយក CSV' : 'Export CSV'}</span>
           </button>
 
           <button
@@ -169,7 +172,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer shadow-sm"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Default</span>
+            <span>{isKm ? 'កំណត់ឡើងវិញ' : 'Reset Default'}</span>
           </button>
         </div>
       </div>
@@ -203,9 +206,9 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 <Table className="w-4 h-4 text-yellow-400" />
-                <span>Spreadsheet Grid View</span>
+                <span>{isKm ? 'ទិដ្ឋភាពក្រឡាសន្លឹកការងារ' : 'Spreadsheet Grid View'}</span>
               </div>
-              <span className="text-[11px] text-slate-500 font-mono">Live Sync Formula</span>
+              <span className="text-[11px] text-slate-500 font-mono">{isKm ? 'រូបមន្តធ្វើសមកាលកម្មផ្ទាល់' : 'Live Sync Formula'}</span>
             </div>
 
             {/* Exact Spreadsheet Layout from User's Screenshot */}
@@ -215,7 +218,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   {/* Row 1: BALANCE */}
                   <tr className="border-b border-slate-200">
                     <td className="py-2.5 px-4 font-bold text-slate-800 tracking-wider text-right w-1/3">
-                      BALANCE
+                      {isKm ? 'សមតុល្យ (BALANCE)' : 'BALANCE'}
                     </td>
                     <td className="py-2.5 px-2 font-semibold text-slate-700 w-8 text-center">
                       $
@@ -229,7 +232,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   {/* Row 2: THRESHOLD */}
                   <tr className="border-b border-slate-200">
                     <td className="py-2.5 px-4 font-bold text-slate-800 tracking-wider text-right">
-                      THRESHOLD
+                      {isKm ? 'កម្រិតហានិភ័យ (THRESHOLD)' : 'THRESHOLD'}
                     </td>
                     <td className="py-2.5 px-2 font-semibold text-slate-700 text-center">
                       {outputs.thresholdPct}%
@@ -245,7 +248,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   {/* Row 3: MAX POSITION */}
                   <tr className="border-b border-slate-200">
                     <td className="py-2.5 px-4 font-bold text-slate-800 tracking-wider text-right">
-                      MAX POSITION
+                      {isKm ? 'ចំនួនអតិបរមា (MAX POSITION)' : 'MAX POSITION'}
                     </td>
                     <td className="py-2.5 px-2"></td>
                     <td className="py-2.5 px-4 font-bold text-slate-900 text-right text-base" colSpan={2}>
@@ -256,7 +259,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   {/* Row 4: TARGET */}
                   <tr className="border-b border-slate-200">
                     <td className="py-2.5 px-4 font-bold text-slate-800 tracking-wider text-right">
-                      TARGET
+                      {isKm ? 'គោលដៅ (TARGET)' : 'TARGET'}
                     </td>
                     <td className="py-2.5 px-2 font-semibold text-slate-700 text-center">
                       {outputs.targetPct}%
@@ -272,7 +275,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   {/* Row 5: LOTSIZE */}
                   <tr className="border-b border-slate-200">
                     <td className="py-2.5 px-4 font-bold text-slate-800 tracking-wider text-right">
-                      LOTSIZE
+                      {isKm ? 'ទំហំ LOT (LOTSIZE)' : 'LOTSIZE'}
                     </td>
                     <td className="py-2.5 px-2 font-semibold text-slate-700 text-center">
                       $
@@ -285,7 +288,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   {/* Row 6: REVERSE */}
                   <tr className="border-b border-slate-200">
                     <td className="py-2.5 px-4 font-bold text-slate-800 tracking-wider text-right">
-                      REVERSE
+                      {isKm ? 'បម្រុងទុក (REVERSE)' : 'REVERSE'}
                     </td>
                     <td className="py-2.5 px-2 font-semibold text-slate-700 text-center">
                       $
@@ -298,7 +301,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   {/* Row 7: EQUITY (Yellow Highlighted with Red Bold Text) */}
                   <tr className="bg-[#ffff00] border-2 border-yellow-500">
                     <td className="py-3 px-4 font-black text-slate-950 tracking-wider text-right text-base">
-                      EQUITY
+                      {isKm ? 'ទ្រព្យសកម្មសុទ្ធ (EQUITY)' : 'EQUITY'}
                     </td>
                     <td className="py-3 px-2 font-black text-red-600 text-center text-lg">
                       $
@@ -314,16 +317,16 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             {/* Quick Formula Explainers */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-xs">
-                <span className="text-slate-400 block font-semibold">Threshold Formula:</span>
+                <span className="text-slate-400 block font-semibold">{isKm ? 'រូបមន្តកម្រិតហានិភ័យ៖' : 'Threshold Formula:'}</span>
                 <code className="text-amber-300 font-mono text-[11px]">
-                  Balance ({outputs.balance.toLocaleString()}) × {outputs.thresholdPct}% = ${outputs.thresholdAmount.toLocaleString()}
+                  {isKm ? 'សមតុល្យ' : 'Balance'} ({outputs.balance.toLocaleString()}) × {outputs.thresholdPct}% = ${outputs.thresholdAmount.toLocaleString()}
                 </code>
               </div>
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-xs">
-                <span className="text-slate-400 block font-semibold">Equity Formula:</span>
+                <span className="text-slate-400 block font-semibold">{isKm ? 'រូបមន្តទ្រព្យសកម្មសុទ្ធ៖' : 'Equity Formula:'}</span>
                 <code className="text-emerald-400 font-mono text-[11px]">
-                  Balance ({outputs.balance.toLocaleString()}) + Target (${outputs.targetAmount.toLocaleString()}) = ${outputs.equity.toLocaleString()}
+                  {isKm ? 'សមតុល្យ' : 'Balance'} ({outputs.balance.toLocaleString()}) + {isKm ? 'គោលដៅ' : 'Target'} (${outputs.targetAmount.toLocaleString()}) = ${outputs.equity.toLocaleString()}
                 </code>
               </div>
             </div>
@@ -336,9 +339,9 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 <Calculator className="w-4 h-4 text-cyan-400" />
-                <span>Parameter Inputs</span>
+                <span>{isKm ? 'ការបញ្ចូលប៉ារ៉ាម៉ែត្រ' : 'Parameter Inputs'}</span>
               </div>
-              <span className="text-[11px] text-cyan-400 font-mono">Real-time Calculation</span>
+              <span className="text-[11px] text-cyan-400 font-mono">{isKm ? 'ការគណនាផ្ទាល់ភ្លាមៗ' : 'Real-time Calculation'}</span>
             </div>
 
             <div className="space-y-4">
@@ -347,7 +350,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                 <div className="flex justify-between text-xs">
                   <label className="text-slate-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                     <DollarSign className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Balance ($)</span>
+                    <span>{isKm ? 'សមតុល្យ ($)' : 'Balance ($)'}</span>
                   </label>
                   <span className="font-mono text-cyan-300 font-bold">${inputs.balance.toLocaleString()}</span>
                 </div>
@@ -366,7 +369,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   <div className="flex justify-between text-xs">
                     <label className="text-slate-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                       <Percent className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Threshold (%)</span>
+                      <span>{isKm ? 'កម្រិតហានិភ័យ (%)' : 'Threshold (%)'}</span>
                     </label>
                     <span className="font-mono text-amber-300">{inputs.thresholdPct}%</span>
                   </div>
@@ -388,7 +391,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   <div className="flex justify-between text-xs">
                     <label className="text-slate-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                       <Hash className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Max Position</span>
+                      <span>{isKm ? 'ចំនួន Position អតិបរមា' : 'Max Position'}</span>
                     </label>
                     <span className="font-mono text-purple-300">{inputs.maxPosition}</span>
                   </div>
@@ -412,7 +415,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   <div className="flex justify-between text-xs">
                     <label className="text-slate-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                       <Target className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Target (%)</span>
+                      <span>{isKm ? 'គោលដៅ (%)' : 'Target (%)'}</span>
                     </label>
                     <span className="font-mono text-emerald-300">{inputs.targetPct}%</span>
                   </div>
@@ -433,7 +436,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                   <div className="flex justify-between text-xs">
                     <label className="text-slate-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Lot Size</span>
+                      <span>{isKm ? 'ទំហំ Lot' : 'Lot Size'}</span>
                     </label>
                     <span className="font-mono text-cyan-300">{inputs.lotSize}</span>
                   </div>
@@ -446,7 +449,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                     className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500/50 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-sm font-bold"
                   />
                   <span className="text-[11px] text-slate-400 block font-mono">
-                    Total: {outputs.totalLotVolume} Lots
+                    {isKm ? 'សរុប៖' : 'Total:'} {outputs.totalLotVolume} Lots
                   </span>
                 </div>
               </div>
@@ -461,7 +464,7 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                       onChange={(e) => updateInputs({ autoReverseMatch: e.target.checked })}
                       className="accent-yellow-400 rounded cursor-pointer"
                     />
-                    <span>Auto-Match Reverse to Target ($)</span>
+                    <span>{isKm ? 'ផ្គូផ្គងស្វ័យប្រវត្តិ Reverse ទៅ Target ($)' : 'Auto-Match Reverse to Target ($)'}</span>
                   </label>
                   <span className="font-mono text-xs text-yellow-400 font-bold">
                     ${outputs.reverseAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -483,21 +486,21 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             {/* Performance Metric Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
               <div className="bg-slate-900/70 border border-slate-800 p-3 rounded-xl space-y-1">
-                <span className="text-[11px] text-slate-400">Risk / Pos</span>
+                <span className="text-[11px] text-slate-400">{isKm ? 'ហានិភ័យ/Pos' : 'Risk / Pos'}</span>
                 <div className="font-mono text-sm font-bold text-rose-400">
                   ${outputs.riskPerPosition}
                 </div>
               </div>
 
               <div className="bg-slate-900/70 border border-slate-800 p-3 rounded-xl space-y-1">
-                <span className="text-[11px] text-slate-400">Target / Pos</span>
+                <span className="text-[11px] text-slate-400">{isKm ? 'គោលដៅ/Pos' : 'Target / Pos'}</span>
                 <div className="font-mono text-sm font-bold text-emerald-400">
                   ${outputs.targetPerPosition}
                 </div>
               </div>
 
               <div className="bg-slate-900/70 border border-slate-800 p-3 rounded-xl space-y-1 col-span-2 sm:col-span-1">
-                <span className="text-[11px] text-slate-400">Total Volume</span>
+                <span className="text-[11px] text-slate-400">{isKm ? 'បរិមាណសរុប' : 'Total Volume'}</span>
                 <div className="font-mono text-sm font-bold text-cyan-300">
                   {outputs.totalLotVolume} Lots
                 </div>
@@ -516,16 +519,18 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
             </div>
             <div>
               <h2 className="font-heading font-bold text-sm text-slate-100">
-                10-Cycle Equity Compounding Schedule
+                {isKm ? 'តារាងបូកបន្តទ្រព្យសកម្ម ១០ វដ្ត (Compounding)' : '10-Cycle Equity Compounding Schedule'}
               </h2>
               <p className="text-xs text-slate-400">
-                Compounding growth trajectory applying {inputs.targetPct}% target and {inputs.thresholdPct}% risk threshold per cycle
+                {isKm
+                  ? `គន្លងកំណើនបូកបន្តដោយអនុវត្តគោលដៅ ${inputs.targetPct}% និងកម្រិតហានិភ័យ ${inputs.thresholdPct}% ក្នុងមួយវដ្ត`
+                  : `Compounding growth trajectory applying ${inputs.targetPct}% target and ${inputs.thresholdPct}% risk threshold per cycle`}
               </p>
             </div>
           </div>
 
           <div className="text-xs font-mono text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
-            Cycle 10 Projected: <strong className="text-emerald-400">${outputs.compoundingCycles[outputs.compoundingCycles.length - 1]?.endEquity.toLocaleString()}</strong>
+            {isKm ? 'ការប៉ាន់ស្មានវដ្តទី ១០៖ ' : 'Cycle 10 Projected: '}<strong className="text-emerald-400">${outputs.compoundingCycles[outputs.compoundingCycles.length - 1]?.endEquity.toLocaleString()}</strong>
           </div>
         </div>
 
@@ -533,19 +538,19 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
           <table className="w-full text-xs text-left font-mono">
             <thead className="bg-[#111728] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
               <tr>
-                <th className="py-3 px-4">Cycle</th>
-                <th className="py-3 px-4">Start Balance ($)</th>
-                <th className="py-3 px-4">Target Profit +{inputs.targetPct}% ($)</th>
-                <th className="py-3 px-4">Threshold Risk {inputs.thresholdPct}% ($)</th>
-                <th className="py-3 px-4">End Equity ($)</th>
-                <th className="py-3 px-4">Cumulative Gain (%)</th>
+                <th className="py-3 px-4">{isKm ? 'វដ្ត' : 'Cycle'}</th>
+                <th className="py-3 px-4">{isKm ? 'សមតុល្យដើម ($)' : 'Start Balance ($)'}</th>
+                <th className="py-3 px-4">{isKm ? `ចំណេញគោលដៅ +${inputs.targetPct}% ($)` : `Target Profit +${inputs.targetPct}% ($)`}</th>
+                <th className="py-3 px-4">{isKm ? `ហានិភ័យកម្រិត ${inputs.thresholdPct}% ($)` : `Threshold Risk ${inputs.thresholdPct}% ($)`}</th>
+                <th className="py-3 px-4">{isKm ? 'ទុនចុងក្រោយ ($)' : 'End Equity ($)'}</th>
+                <th className="py-3 px-4">{isKm ? 'កំណើនសរុប (%)' : 'Cumulative Gain (%)'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
               {outputs.compoundingCycles.map((c) => (
                 <tr key={c.cycle} className="hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-4 font-bold text-slate-200">
-                    Cycle #{c.cycle}
+                    {isKm ? `វដ្តទី #${c.cycle}` : `Cycle #${c.cycle}`}
                   </td>
                   <td className="py-2.5 px-4 font-semibold text-slate-100">
                     ${c.startBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}

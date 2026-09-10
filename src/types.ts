@@ -396,4 +396,4 @@ export type TranslationKey =
   | 'restoreLastSim'
   | 'recentSimulations';
 
-export type Translations = Record<TranslationKey, string>;
+export type Translations = Record<string, string>;

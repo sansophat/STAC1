@@ -40,6 +40,7 @@ interface GoldCalculatorViewProps {
 }
 
 export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => {
+  const isKm = t.langToggle === 'English' || t.day === 'ថ្ងៃ';
   const [inputs, setInputs] = useState<TradingCalculationInputs>(() => {
     return safeStorage.getJSON<TradingCalculationInputs>('snl_gold_inputs', DEFAULT_GOLD_INPUTS);
   });
@@ -66,6 +67,24 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
   const resetDefaults = () => {
     setActivePresetId(null);
     updateInputs(DEFAULT_GOLD_INPUTS);
+  };
+
+  const getPresetName = (p: SavedPreset) => {
+    if (!isKm) return p.name;
+    if (p.id === 'scalp-standard') return 'Scalping ស្តង់ដារ (ហានិភ័យ 1%)';
+    if (p.id === 'swing-conservative') return 'Swing ហានិភ័យទាប (ហានិភ័យ 0.5%)';
+    if (p.id === 'day-aggressive') return 'Day Trading សកម្ម (ហានិភ័យ 2%)';
+    if (p.id === 'dca-grid') return 'DCA Grid Averaging (5 ស្រទាប់)';
+    return p.name;
+  };
+
+  const getPresetDesc = (p: SavedPreset) => {
+    if (!isKm) return p.description;
+    if (p.id === 'scalp-standard') return 'SL តឹង 20 Pips, TP 40 Pips (1:2 RR) សមស្របសម្រាប់ចលនាខ្លីរហ័សលើមាស';
+    if (p.id === 'swing-conservative') return 'SL ទូលាយ 80 Pips, TP 200 Pips (1:2.5 RR) សម្រាប់និន្នាការធំ';
+    if (p.id === 'day-aggressive') return 'SL 35 Pips, TP 70 Pips សម្រាប់ការប្រែប្រួលខ្លាំងក្នុងវគ្គញូវយ៉ក';
+    if (p.id === 'dca-grid') return 'ការចូល 5 ស្រទាប់, គម្លាត 15 pips, ពង្រីកទំហំគុណ x1.5';
+    return p.description;
   };
 
   return (
@@ -105,7 +124,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs py-2 px-3 rounded-xl transition-all cursor-pointer shadow-sm"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset</span>
+            <span>{isKm ? 'កំណត់ឡើងវិញ' : 'Reset'}</span>
           </button>
         </div>
       </div>
@@ -117,7 +136,9 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             <Zap className="w-3.5 h-3.5 text-amber-400" />
             <span>{t.presetsTitle}</span>
           </div>
-          <span className="text-[11px] text-slate-500">Click to apply instant trading configuration</span>
+          <span className="text-[11px] text-slate-500">
+            {isKm ? 'ចុចដើម្បីអនុវត្តការកំណត់រចនាសម្ព័ន្ធជួញដូរភ្លាមៗ' : 'Click to apply instant trading configuration'}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -134,10 +155,10 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                 }`}
               >
                 <div className="font-heading font-semibold text-xs text-slate-200 truncate">
-                  {p.name}
+                  {getPresetName(p)}
                 </div>
                 <div className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  {p.description}
+                  {getPresetDesc(p)}
                 </div>
               </button>
             );
@@ -154,7 +175,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
                 <span>{t.lblDirection}</span>
-                <span className="text-[11px] font-normal text-slate-400">Position Type</span>
+                <span className="text-[11px] font-normal text-slate-400">{isKm ? 'ប្រភេទទីតាំង' : 'Position Type'}</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -167,7 +188,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   }`}
                 >
                   <TrendingUp className="w-4 h-4 text-emerald-400" />
-                  <span>BUY (LONG)</span>
+                  <span>{isKm ? 'ទិញ BUY (LONG)' : 'BUY (LONG)'}</span>
                 </button>
 
                 <button
@@ -180,7 +201,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   }`}
                 >
                   <TrendingDown className="w-4 h-4 text-rose-400" />
-                  <span>SELL (SHORT)</span>
+                  <span>{isKm ? 'លក់ SELL (SHORT)' : 'SELL (SHORT)'}</span>
                 </button>
               </div>
             </div>
@@ -189,7 +210,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             <div className="space-y-3 pt-2 border-t border-slate-800/80">
               <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <DollarSign className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Account & Risk</span>
+                <span>{isKm ? 'គណនី និងហានិភ័យ' : 'Account & Risk'}</span>
               </div>
 
               {/* Balance */}
@@ -219,7 +240,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                       : 'bg-slate-900 text-slate-400 border-slate-800'
                   }`}
                 >
-                  % Risk per Trade
+                  {isKm ? '% ហានិភ័យក្នុងមួយជួញដូរ' : '% Risk per Trade'}
                 </button>
                 <button
                   type="button"
@@ -230,7 +251,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                       : 'bg-slate-900 text-slate-400 border-slate-800'
                   }`}
                 >
-                  Fixed $ Amount
+                  {isKm ? 'ចំនួនទឹកប្រាក់ $ ថេរ' : 'Fixed $ Amount'}
                 </button>
               </div>
 
@@ -287,7 +308,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   >
                     <option value={100}>1:100</option>
                     <option value={200}>1:200</option>
-                    <option value={500}>1:500 (Standard)</option>
+                    <option value={500}>{isKm ? '1:500 (ស្តង់ដារ)' : '1:500 (Standard)'}</option>
                     <option value={1000}>1:1000</option>
                     <option value={2000}>1:2000</option>
                   </select>
@@ -311,14 +332,14 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             <div className="space-y-3 pt-2 border-t border-slate-800/80">
               <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Target className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Price Levels (XAUUSD)</span>
+                <span>{isKm ? 'កម្រិតថ្លៃ (XAUUSD)' : 'Price Levels (XAUUSD)'}</span>
               </div>
 
               {/* Entry Price */}
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>{t.lblEntryPrice}</span>
-                  <span className="text-[11px] text-slate-500">Market / Limit</span>
+                  <span className="text-[11px] text-slate-500">{isKm ? 'ទីផ្សារ / Limit' : 'Market / Limit'}</span>
                 </div>
                 <input
                   type="number"
@@ -366,24 +387,24 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
               {/* Extended TP2 & TP3 */}
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400">TP2 Extended ($)</label>
+                  <label className="text-[11px] text-slate-400">{isKm ? 'TP2 បន្ថែម ($)' : 'TP2 Extended ($)'}</label>
                   <input
                     type="number"
                     value={inputs.takeProfitPrice2 || ''}
                     onChange={(e) => updateInputs({ takeProfitPrice2: parseFloat(e.target.value) || undefined })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 font-mono"
-                    placeholder="Optional TP2"
+                    placeholder={isKm ? 'ជម្រើសបន្ថែម TP2' : 'Optional TP2'}
                     step="0.5"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400">TP3 Runner ($)</label>
+                  <label className="text-[11px] text-slate-400">{isKm ? 'TP3 រត់តាមរលក ($)' : 'TP3 Runner ($)'}</label>
                   <input
                     type="number"
                     value={inputs.takeProfitPrice3 || ''}
                     onChange={(e) => updateInputs({ takeProfitPrice3: parseFloat(e.target.value) || undefined })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 font-mono"
-                    placeholder="Optional TP3"
+                    placeholder={isKm ? 'ជម្រើសបន្ថែម TP3' : 'Optional TP3'}
                     step="0.5"
                   />
                 </div>
@@ -400,10 +421,10 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                     onChange={(e) => updateInputs({ useCustomLot: e.target.checked })}
                     className="accent-amber-500 rounded cursor-pointer"
                   />
-                  <span>Manual Lot Override</span>
+                  <span>{isKm ? 'កំណត់ទំហំ Lot ដោយផ្ទាល់' : 'Manual Lot Override'}</span>
                 </label>
                 {inputs.useCustomLot && (
-                  <span className="text-[10px] text-amber-400 font-mono">Custom Sizing Active</span>
+                  <span className="text-[10px] text-amber-400 font-mono">{isKm ? 'កំពុងប្រើទំហំកំណត់ផ្ទាល់' : 'Custom Sizing Active'}</span>
                 )}
               </div>
 
@@ -426,12 +447,12 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             <div className="pt-2 border-t border-slate-800/80 space-y-3">
               <div className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-purple-400" />
-                <span>DCA Grid Settings</span>
+                <span>{isKm ? 'ការកំណត់ប្រព័ន្ធ DCA Grid' : 'DCA Grid Settings'}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400">Layers (1-10)</label>
+                  <label className="text-[11px] text-slate-400">{isKm ? 'ចំនួនស្រទាប់ (1-10)' : 'Layers (1-10)'}</label>
                   <input
                     type="number"
                     min="1"
@@ -442,7 +463,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400">Step Distance (Pips)</label>
+                  <label className="text-[11px] text-slate-400">{isKm ? 'គម្លាតជំហាន (Pips)' : 'Step Distance (Pips)'}</label>
                   <input
                     type="number"
                     step="5"
@@ -456,19 +477,19 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400">Scaling Type</label>
+                  <label className="text-[11px] text-slate-400">{isKm ? 'ប្រភេទពង្រីក Lot' : 'Scaling Type'}</label>
                   <select
                     value={inputs.dcaScalingType}
                     onChange={(e) => updateInputs({ dcaScalingType: e.target.value as DCAScalingType })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 font-mono"
                   >
-                    <option value="linear">Linear (+step)</option>
-                    <option value="multiplier">Multiplier (x1.5)</option>
-                    <option value="martingale">Martingale (x2.0)</option>
+                    <option value="linear">{isKm ? 'លីនេអ៊ែរ (+step)' : 'Linear (+step)'}</option>
+                    <option value="multiplier">{isKm ? 'មេគុណ (x1.5)' : 'Multiplier (x1.5)'}</option>
+                    <option value="martingale">{isKm ? 'ម៉ាទីនហ្គេល (x2.0)' : 'Martingale (x2.0)'}</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400">Basket TP (Pips)</label>
+                  <label className="text-[11px] text-slate-400">{isKm ? 'TP រួមទាំងអស់ (Pips)' : 'Basket TP (Pips)'}</label>
                   <input
                     type="number"
                     step="5"
@@ -499,12 +520,14 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   <span className="font-heading font-extrabold text-4xl text-amber-300 font-mono">
                     {outputs.actualLot.toFixed(2)}
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">Standard Lots ({outputs.actualLot * 100} oz)</span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {isKm ? `Lots ស្តង់ដារ (${outputs.actualLot * 100} oz)` : `Standard Lots (${outputs.actualLot * 100} oz)`}
+                  </span>
                 </div>
               </div>
 
               <div className="text-right sm:text-right space-y-1">
-                <div className="text-xs text-slate-400">Max Risk Allowed</div>
+                <div className="text-xs text-slate-400">{isKm ? 'ហានិភ័យអតិបរមាអនុញ្ញាត' : 'Max Risk Allowed'}</div>
                 <div className="font-mono text-lg font-bold text-rose-400">
                   -${outputs.moneyAtRisk.toFixed(2)} ({outputs.riskPercentActual}%)
                 </div>
@@ -518,7 +541,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                 <div className="font-mono text-base font-bold text-emerald-400 mt-0.5">
                   1 : {outputs.riskRewardRatio}
                 </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Target ratio</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">{isKm ? 'សមាមាត្រគោលដៅ' : 'Target ratio'}</div>
               </div>
 
               <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
@@ -542,7 +565,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                 <div className="font-mono text-base font-bold text-slate-200 mt-0.5">
                   ${outputs.pipValue.toFixed(2)}
                 </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">per 0.10$ move</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">{isKm ? 'ក្នុងចលនា $0.10' : 'per 0.10$ move'}</div>
               </div>
             </div>
           </div>
@@ -552,7 +575,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             <div className="flex items-center justify-between">
               <h3 className="font-heading font-semibold text-xs text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Account Margin & Liquidation Safety</span>
+                <span>{isKm ? 'សុវត្ថិភាព Margin និងការជៀសវាង Liquidation' : 'Account Margin & Liquidation Safety'}</span>
               </h3>
               <span
                 className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold ${
@@ -563,27 +586,27 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                     : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
                 }`}
               >
-                Margin Level: {outputs.marginLevel.toFixed(0)}%
+                {isKm ? 'កម្រិត Margin៖ ' : 'Margin Level: '}{outputs.marginLevel.toFixed(0)}%
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                <div className="text-[11px] text-slate-400">Free Margin Remaining</div>
+                <div className="text-[11px] text-slate-400">{isKm ? 'Margin ទំនេរនៅសល់' : 'Free Margin Remaining'}</div>
                 <div className="font-mono text-sm font-bold text-slate-100 mt-1">
                   ${outputs.freeMargin.toFixed(2)}
                 </div>
               </div>
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                <div className="text-[11px] text-slate-400">Breakeven Price (Spread)</div>
+                <div className="text-[11px] text-slate-400">{isKm ? 'ថ្លៃរួចខ្លួន (រួមទាំង Spread)' : 'Breakeven Price (Spread)'}</div>
                 <div className="font-mono text-sm font-bold text-cyan-300 mt-1">
                   ${outputs.breakevenPrice.toFixed(2)}
                 </div>
               </div>
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                <div className="text-[11px] text-slate-400">Recovery Reverse Lot</div>
+                <div className="text-[11px] text-slate-400">{isKm ? 'Lot ត្រឡប់ទិសដៅស្រង់ដើម' : 'Recovery Reverse Lot'}</div>
                 <div className="font-mono text-sm font-bold text-amber-300 mt-1">
                   {outputs.reverseTargetRecoveryLot.toFixed(2)} Lots
                 </div>
@@ -595,13 +618,13 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
           <div className="rounded-2xl border border-slate-800 bg-[#0c111e]/90 p-5 shadow-lg space-y-3">
             <h3 className="font-heading font-semibold text-xs text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <Target className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Multi-Target Profit Scenarios</span>
+              <span>{isKm ? 'សេណារីយ៉ូចំណេញគោលដៅច្រើនកម្រិត' : 'Multi-Target Profit Scenarios'}</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-emerald-400 font-bold">TP1 Target</span>
+                  <span className="text-emerald-400 font-bold">{isKm ? 'គោលដៅ TP1' : 'TP1 Target'}</span>
                   <span className="font-mono text-slate-400">${inputs.takeProfitPrice.toFixed(2)}</span>
                 </div>
                 <div className="font-mono text-lg font-bold text-emerald-300">
@@ -614,7 +637,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
 
               <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-xl space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-cyan-400 font-semibold">TP2 Extended</span>
+                  <span className="text-cyan-400 font-semibold">{isKm ? 'TP2 បន្ថែម' : 'TP2 Extended'}</span>
                   <span className="font-mono text-slate-400">
                     ${(inputs.takeProfitPrice2 || inputs.takeProfitPrice + 10).toFixed(2)}
                   </span>
@@ -623,13 +646,13 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   +${outputs.potentialProfitTP2.toFixed(2)}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono">
-                  Extended expansion target
+                  {isKm ? 'គោលដៅពង្រីកបន្ថែម' : 'Extended expansion target'}
                 </div>
               </div>
 
               <div className="bg-slate-900/60 border border-slate-800 p-3 rounded-xl space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="text-purple-400 font-semibold">TP3 Runner</span>
+                  <span className="text-purple-400 font-semibold">{isKm ? 'TP3 រត់តាមរលកវែង' : 'TP3 Runner'}</span>
                   <span className="font-mono text-slate-400">
                     ${(inputs.takeProfitPrice3 || inputs.takeProfitPrice + 25).toFixed(2)}
                   </span>
@@ -638,7 +661,7 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   +${outputs.potentialProfitTP3.toFixed(2)}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono">
-                  Full trend runner target
+                  {isKm ? 'គោលដៅរត់តាមនិន្នាការធំ' : 'Full trend runner target'}
                 </div>
               </div>
             </div>
@@ -655,25 +678,27 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             </div>
             <div>
               <h2 className="font-heading font-bold text-sm text-slate-100">
-                {t.dcaLadder} (Grid Averaging)
+                {t.dcaLadder} {isKm ? '(មធ្យមភាគ Grid)' : '(Grid Averaging)'}
               </h2>
               <p className="text-xs text-slate-400">
-                Multi-layer entry projections, average price shifts, and basket exit calculations
+                {isKm
+                  ? 'ការព្យាករណ៍ការចូលច្រើនស្រទាប់, ការផ្លាស់ប្តូរថ្លៃមធ្យម, និងការគណនាចេញរួមគ្នា'
+                  : 'Multi-layer entry projections, average price shifts, and basket exit calculations'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-mono text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
             <span>
-              Total Basket Lots: <strong className="text-amber-300">{outputs.totalDcaLots}</strong>
+              {isKm ? 'Lot សរុបកន្ត្រក៖ ' : 'Total Basket Lots: '}<strong className="text-amber-300">{outputs.totalDcaLots}</strong>
             </span>
             <span>•</span>
             <span>
-              Total Margin: <strong className="text-cyan-300">${outputs.totalDcaMargin.toFixed(2)}</strong>
+              {isKm ? 'Margin សរុប៖ ' : 'Total Margin: '}<strong className="text-cyan-300">${outputs.totalDcaMargin.toFixed(2)}</strong>
             </span>
             <span>•</span>
             <span>
-              Basket Net Profit: <strong className="text-emerald-400">+${outputs.dcaTotalProfitAtTp.toFixed(2)}</strong>
+              {isKm ? 'ចំណេញសុទ្ធកន្ត្រក៖ ' : 'Basket Net Profit: '}<strong className="text-emerald-400">+${outputs.dcaTotalProfitAtTp.toFixed(2)}</strong>
             </span>
           </div>
         </div>
@@ -684,15 +709,15 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
             <thead className="bg-[#111728] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
               <tr>
                 <th className="py-3 px-3.5">{t.layer}</th>
-                <th className="py-3 px-3.5">Entry Price ($)</th>
-                <th className="py-3 px-3.5">Pips from #1</th>
-                <th className="py-3 px-3.5">Layer Lot</th>
-                <th className="py-3 px-3.5">Cum. Lots</th>
+                <th className="py-3 px-3.5">{isKm ? 'ថ្លៃចូល ($)' : 'Entry Price ($)'}</th>
+                <th className="py-3 px-3.5">{isKm ? 'Pips ពីជួរទី១' : 'Pips from #1'}</th>
+                <th className="py-3 px-3.5">{isKm ? 'Lot ស្រទាប់' : 'Layer Lot'}</th>
+                <th className="py-3 px-3.5">{isKm ? 'Lot សរុបកើន' : 'Cum. Lots'}</th>
                 <th className="py-3 px-3.5">{t.avgPrice} ($)</th>
-                <th className="py-3 px-3.5">Layer Margin ($)</th>
-                <th className="py-3 px-3.5">Drawdown ($)</th>
-                <th className="py-3 px-3.5">Basket TP ($)</th>
-                <th className="py-3 px-3.5">Profit at TP ($)</th>
+                <th className="py-3 px-3.5">{isKm ? 'Margin ស្រទាប់ ($)' : 'Layer Margin ($)'}</th>
+                <th className="py-3 px-3.5">{isKm ? 'Drawdown ($)' : 'Drawdown ($)'}</th>
+                <th className="py-3 px-3.5">{isKm ? 'TP កន្ត្រក ($)' : 'Basket TP ($)'}</th>
+                <th className="py-3 px-3.5">{isKm ? 'ចំណេញពេល TP ($)' : 'Profit at TP ($)'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-slate-300">
