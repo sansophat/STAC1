@@ -233,6 +233,7 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
       baseEquity: inv?.base_equity || 2000,
       baseLotSize: inv?.base_lot_size || 0.01,
       lotIncrement: inv?.lot_increment || 0.01,
+      maxLotSize: inv?.max_lot_size || 200,
       initialCapital: inv?.initial_capital || 2000,
     };
   };
@@ -245,7 +246,13 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
   // Helper to calculate lot and tier
   const getLotAndTier = (equity: number, invName?: string) => {
     const config = getInvestorConfig(invName);
-    const lot = calculateLotSize(equity, config.baseEquity, config.baseLotSize, config.lotIncrement);
+    const lot = calculateLotSize(
+      equity,
+      config.baseEquity,
+      config.baseLotSize,
+      config.lotIncrement,
+      config.maxLotSize
+    );
     const tier = Math.max(1, Math.floor(equity / config.baseEquity));
     return { lot: parseFloat(lot.toFixed(4)), tier };
   };
@@ -3047,12 +3054,14 @@ export const TradeLogView: React.FC<TradeLogViewProps> = ({
                         <input
                           type="number"
                           step="0.0001"
+                          min="0.0001"
+                          max="200"
                           disabled={!customLotOverride}
                           value={formData.lot_size}
                           onChange={(e) =>
                             setFormData((prev) => ({
                               ...prev,
-                              lot_size: parseFloat(e.target.value) || 0,
+                              lot_size: Math.min(200, Math.max(0, parseFloat(e.target.value) || 0)),
                             }))
                           }
                           className={`w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none ${

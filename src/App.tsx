@@ -502,6 +502,7 @@ export function App() {
       baseEquity: inv.base_equity,
       baseLotSize: inv.base_lot_size,
       lotIncrement: inv.lot_increment,
+      maxLotSize: inv.max_lot_size ?? params.maxLotSize ?? 200,
       excludeWeekends: params.excludeWeekends ?? true,
     };
 

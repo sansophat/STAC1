@@ -234,11 +234,12 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
     const baseEq = currentInvestor?.base_equity || 2000;
     const lotInc = currentInvestor?.lot_increment || 0.01;
 
-    // Calculate appropriate lot size
-    let calculatedLot = baseLot;
+    // Calculate appropriate lot size (capped at maxLotSize = 200)
+    const maxLotCap = Math.min(200, currentInvestor?.max_lot_size || 200);
+    let calculatedLot = Math.min(maxLotCap, baseLot);
     if (baseEq > 0) {
       const tiers = Math.max(0, Math.floor(nextStartEquity / baseEq) - 1);
-      calculatedLot = parseFloat((baseLot + tiers * lotInc).toFixed(4));
+      calculatedLot = Math.min(maxLotCap, parseFloat((baseLot + tiers * lotInc).toFixed(4)));
     }
 
     const defaultProfitPct = currentInvestor ? (currentInvestor.profit_min + currentInvestor.profit_max) / 2 : 15;
@@ -908,21 +909,40 @@ export const CentUsdConverterModal: React.FC<CentUsdConverterModalProps> = ({
 
               <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/60 p-3 rounded-lg border border-slate-800/80">
                 <div>
-                  <label className="text-[11px] text-slate-400 block mb-1">
-                    {isKm ? 'ក្លែងធ្វើទំហំ Lot' : 'Simulate Lot Size'}
-                  </label>
-                  <select
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] text-slate-400">
+                      {isKm ? 'ក្លែងធ្វើទំហំ Lot (អតិបរមា 200)' : 'Simulate Lot Size (Max 200)'}
+                    </label>
+                    <span className="text-[10px] font-mono text-amber-400">≤ 200 Lots</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max="200"
                     value={simLot}
-                    onChange={(e) => setSimLot(parseFloat(e.target.value))}
-                    className="w-full bg-[#111726] border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none cursor-pointer"
-                  >
-                    <option value={0.01}>0.01 Lot</option>
-                    <option value={0.02}>0.02 Lot</option>
-                    <option value={0.05}>0.05 Lot</option>
-                    <option value={0.1}>0.10 Lot</option>
-                    <option value={0.5}>0.50 Lot</option>
-                    <option value={1.0}>1.00 Lot</option>
-                  </select>
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setSimLot(isNaN(val) || val <= 0 ? 0.01 : Math.min(200, val));
+                    }}
+                    className="w-full bg-[#111726] border border-slate-800 focus:border-cyan-500 rounded px-2.5 py-1.5 text-xs text-cyan-300 font-mono font-bold focus:outline-none"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {[0.01, 0.1, 1, 10, 50, 100, 200].map((presetLot) => (
+                      <button
+                        key={presetLot}
+                        type="button"
+                        onClick={() => setSimLot(presetLot)}
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-mono cursor-pointer border transition-colors ${
+                          simLot === presetLot
+                            ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                        }`}
+                      >
+                        {presetLot}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[11px] text-slate-400 block mb-1">

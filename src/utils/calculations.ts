@@ -27,7 +27,7 @@ export function calculateGoldSpreadsheet(inputs: GoldSpreadsheetInputs): GoldSpr
   const targetPct = inputs.targetPct;
   const targetAmount = Number(((balance * targetPct) / 100).toFixed(2));
   
-  const lotSize = inputs.lotSize;
+  const lotSize = Math.min(200, Math.max(0.01, inputs.lotSize));
   const reverseAmount = inputs.autoReverseMatch ? targetAmount : (inputs.reverseAmount ?? targetAmount);
   
   // Equity = Balance + Target
@@ -266,9 +266,12 @@ export function calculateGoldTrade(inputs: TradingCalculationInputs): TradingCal
   // MoneyAtRisk = Lot * contractSize * slDistancePrice
   // => Lot = MoneyAtRisk / (contractSize * slDistancePrice)
   const rawRecommendedLot = moneyAtRisk / (contractSize * slDistancePrice);
-  const recommendedLot = Math.max(0.01, Number(rawRecommendedLot.toFixed(2)));
+  const recommendedLot = Math.min(200, Math.max(0.01, Number(rawRecommendedLot.toFixed(2))));
 
-  const actualLot = useCustomLot && customLotSize && customLotSize > 0 ? customLotSize : recommendedLot;
+  const actualLot = Math.min(
+    200,
+    useCustomLot && customLotSize && customLotSize > 0 ? customLotSize : recommendedLot
+  );
 
   // 4. Value metrics
   const pipValue = actualLot * contractSize * 0.1; // $ per pip (0.10 USD price change)
@@ -323,7 +326,7 @@ export function calculateGoldTrade(inputs: TradingCalculationInputs): TradingCal
         layerLot = baseLadderLot * Math.pow(2, i - 1);
       }
     }
-    layerLot = Math.max(0.01, Number(layerLot.toFixed(2)));
+    layerLot = Math.min(200, Math.max(0.01, Number(layerLot.toFixed(2))));
 
     // Determine entry price for this layer
     const layerEntryPrice =

@@ -41,6 +41,7 @@ const EMPTY_INVESTOR: Omit<Investor, 'id' | 'created_at'> = {
   base_equity: 2000,
   base_lot_size: 0.01,
   lot_increment: 0.01,
+  max_lot_size: 200,
   notes: '',
 };
 
@@ -78,6 +79,7 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
       base_equity: inv.base_equity,
       base_lot_size: inv.base_lot_size,
       lot_increment: inv.lot_increment,
+      max_lot_size: inv.max_lot_size ?? 200,
       notes: inv.notes,
     });
     setModalOpen(true);
@@ -499,9 +501,34 @@ export const InvestorsView: React.FC<InvestorsViewProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    max="200"
                     value={formData.lot_increment}
-                    onChange={(e) => setFormData({ ...formData, lot_increment: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, lot_increment: Math.min(200, Math.max(0, parseFloat(e.target.value) || 0)) })}
                     className="w-full bg-[#111726] border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-amber-300 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-amber-300 font-medium">
+                      {t.lblMaxLot || (isKm ? 'ទំហំ Lot អតិបរមា (កំណត់ត្រឹម 200)' : 'Max Lot Size Limit (Allow up to 200)')}
+                    </label>
+                    <span className="text-[10px] font-mono text-amber-400">Max: 200 Lots</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0.01"
+                    max="200"
+                    value={formData.max_lot_size ?? 200}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setFormData({
+                        ...formData,
+                        max_lot_size: isNaN(v) || v <= 0 ? 0.01 : Math.min(200, v),
+                      });
+                    }}
+                    className="w-full bg-[#111726] border border-amber-500/40 rounded-lg px-3 py-2 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 

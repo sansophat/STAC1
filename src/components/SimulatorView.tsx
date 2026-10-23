@@ -9,6 +9,7 @@ import {
 } from '../types';
 import {
   calculateLotSize,
+  MAX_ALLOWED_LOT_SIZE,
   exportSimulationToCSV,
   exportSimulationToPDF,
 } from '../utils/simulation';
@@ -121,12 +122,20 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     setTimeout(() => setSaveSuccess(false), 2500);
   };
 
+  const effectiveMaxLot =
+    params.maxLotSize !== undefined && params.maxLotSize > 0
+      ? Math.min(MAX_ALLOWED_LOT_SIZE, params.maxLotSize)
+      : MAX_ALLOWED_LOT_SIZE;
+
   const currentLot = calculateLotSize(
     params.initialCapital,
     params.baseEquity,
     params.baseLotSize,
-    params.lotIncrement
+    params.lotIncrement,
+    effectiveMaxLot
   );
+
+  const isMaxLotCapped = result.summary.finalLot >= effectiveMaxLot;
 
   const finalTier = result.summary.finalTier;
 
@@ -515,9 +524,14 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   {t.equityScaling}
                 </h4>
               </div>
-              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                Tier {finalTier}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-mono text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
+                  {isKm ? `Lot អតិបរមា៖ ${effectiveMaxLot}` : `Max Lot: ${effectiveMaxLot}`}
+                </span>
+                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  Tier {finalTier}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -535,14 +549,24 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
               </div>
 
               <div>
-                <label className="text-slate-400 text-xs mb-1.5 block">
-                  {t.lblBaseLot}
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-slate-400 text-xs">
+                    {t.lblBaseLot}
+                  </label>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    ≤ {effectiveMaxLot}
+                  </span>
+                </div>
                 <input
                   type="number"
                   step="0.01"
+                  min="0.01"
+                  max={MAX_ALLOWED_LOT_SIZE}
                   value={params.baseLotSize}
-                  onChange={(e) => updateParam('baseLotSize', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const raw = parseFloat(e.target.value) || 0;
+                    updateParam('baseLotSize', Math.min(MAX_ALLOWED_LOT_SIZE, Math.max(0, raw)));
+                  }}
                   className="w-full bg-[#111726] border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-500/60"
                 />
               </div>
@@ -554,21 +578,92 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
+                  max={MAX_ALLOWED_LOT_SIZE}
                   value={params.lotIncrement}
-                  onChange={(e) => updateParam('lotIncrement', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const raw = parseFloat(e.target.value) || 0;
+                    updateParam('lotIncrement', Math.min(MAX_ALLOWED_LOT_SIZE, Math.max(0, raw)));
+                  }}
                   className="w-full bg-[#111726] border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-500/60"
                 />
               </div>
 
-              <div className="flex items-end">
-                <div className="w-full rounded-lg bg-slate-950/60 border border-emerald-500/20 px-3 py-2 text-xs text-emerald-300">
-                  <div className="flex items-center gap-1 text-slate-400 mb-0.5 text-[10px]">
-                    <Zap className="w-3 h-3 text-emerald-400" />
-                    <span>{t.scalingRule} {params.lotIncrement}</span>
+              {/* Max Lot Size Input Text Box (Max Allowed: 200) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-amber-300/90 text-xs font-medium">
+                    {t.lblMaxLot || (isKm ? 'ទំហំ Lot អតិបរមា' : 'Max Lot Size (Limit)')}
+                  </label>
+                  <span className="text-[10px] font-mono text-amber-400">
+                    {isKm ? 'អតិបរមា 200' : 'Max 200'}
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0.01"
+                    max={MAX_ALLOWED_LOT_SIZE}
+                    value={params.maxLotSize ?? MAX_ALLOWED_LOT_SIZE}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (isNaN(val) || val <= 0) {
+                        updateParam('maxLotSize', 0.01);
+                      } else {
+                        updateParam('maxLotSize', Math.min(MAX_ALLOWED_LOT_SIZE, val));
+                      }
+                    }}
+                    className="w-full bg-[#111726] border border-amber-500/40 rounded-lg px-3 py-2 pr-12 text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-500/30 transition-all"
+                  />
+                  <span className="absolute right-2.5 top-2 text-[10px] text-amber-400/70 font-mono">
+                    / 200
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Max Lot Presets & Live Lot Scaling Summary */}
+              <div className="col-span-2 rounded-xl bg-slate-950/70 border border-emerald-500/20 p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                    <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>
+                      {t.scalingRule} <strong className="text-emerald-300">{params.lotIncrement}</strong> ({isKm ? 'កំណត់ត្រឹម' : 'Cap:'}{' '}
+                      <strong className="text-amber-300">{effectiveMaxLot} Lots</strong>)
+                    </span>
                   </div>
-                  <div className="font-mono font-bold text-xs">
-                    Lot: <span className="text-cyan-300">{currentLot.toFixed(4)}</span> → End: <span className="text-emerald-400">{result.summary.finalLot.toFixed(4)}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-slate-500 mr-0.5">{isKm ? 'កំណត់រហ័ស៖' : 'Cap:'}</span>
+                    {[10, 50, 100, 200].map((capPreset) => (
+                      <button
+                        key={capPreset}
+                        type="button"
+                        onClick={() => updateParam('maxLotSize', capPreset)}
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-all cursor-pointer ${
+                          effectiveMaxLot === capPreset
+                            ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 font-bold'
+                            : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                        }`}
+                      >
+                        {capPreset}
+                      </button>
+                    ))}
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/80 font-mono text-xs">
+                  <div>
+                    <span className="text-slate-400">{isKm ? 'Lot ចាប់ផ្តើម៖ ' : 'Start Lot: '}</span>
+                    <span className="text-cyan-300 font-bold">{currentLot.toFixed(4)}</span>
+                    <span className="text-slate-500 mx-1.5">→</span>
+                    <span className="text-slate-400">{isKm ? 'Lot ចុងក្រោយ៖ ' : 'End Lot: '}</span>
+                    <span className="text-emerald-400 font-bold">{result.summary.finalLot.toFixed(4)}</span>
+                  </div>
+                  {isMaxLotCapped && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold">
+                      {isKm ? `ដល់កម្រិតអតិបរមា (${effectiveMaxLot})` : `MAX ${effectiveMaxLot} CAPPED`}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -884,8 +979,19 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                     ${row.startEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                   <td className="py-2 px-3 text-center">
-                    <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-[10px]">
-                      {row.lotSize.toFixed(4)}
+                    <span
+                      className={`px-1.5 py-0.5 rounded border text-[10px] inline-flex items-center gap-1 ${
+                        row.lotSize >= effectiveMaxLot
+                          ? 'bg-amber-500/15 text-amber-300 border-amber-500/30 font-bold'
+                          : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20'
+                      }`}
+                    >
+                      <span>{row.lotSize.toFixed(4)}</span>
+                      {row.lotSize >= effectiveMaxLot && (
+                        <span className="text-[8px] uppercase px-1 rounded bg-amber-500/20 text-amber-300">
+                          MAX
+                        </span>
+                      )}
                     </span>
                   </td>
                   <td className="py-2 px-3 text-right text-emerald-400">

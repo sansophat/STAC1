@@ -17,19 +17,38 @@ export const DEFAULT_SIMULATION_PARAMS: SimulationParams = {
   baseEquity: 2000,
   baseLotSize: 0.01,
   lotIncrement: 0.01,
+  maxLotSize: 200,
   excludeWeekends: true,
 };
 
-export function calculateLotSize(
+export const MAX_ALLOWED_LOT_SIZE = 200;
+
+export function calculateUncappedLotSize(
   equity: number,
   baseEquity: number,
   baseLotSize: number,
   lotIncrement: number
 ): number {
-  if (equity < baseEquity) return baseLotSize;
+  const safeBaseLot = Math.max(0, baseLotSize);
+  if (equity < baseEquity || baseEquity <= 0) return safeBaseLot;
   const tier = Math.floor(equity / baseEquity);
   const steps = Math.max(0, tier - 1);
-  return baseLotSize + steps * lotIncrement;
+  return safeBaseLot + steps * Math.max(0, lotIncrement);
+}
+
+export function calculateLotSize(
+  equity: number,
+  baseEquity: number,
+  baseLotSize: number,
+  lotIncrement: number,
+  maxLotSize: number = MAX_ALLOWED_LOT_SIZE
+): number {
+  const effectiveMax =
+    maxLotSize !== undefined && maxLotSize > 0
+      ? Math.min(MAX_ALLOWED_LOT_SIZE, maxLotSize)
+      : MAX_ALLOWED_LOT_SIZE;
+  const uncapped = calculateUncappedLotSize(equity, baseEquity, baseLotSize, lotIncrement);
+  return Math.min(uncapped, effectiveMax);
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -66,9 +85,15 @@ export function runSimulation(params: SimulationParams): SimulationResult {
     baseEquity,
     baseLotSize,
     lotIncrement,
+    maxLotSize = MAX_ALLOWED_LOT_SIZE,
     projectName,
     excludeWeekends = true,
   } = params;
+
+  const effectiveMaxLot =
+    maxLotSize !== undefined && maxLotSize > 0
+      ? Math.min(MAX_ALLOWED_LOT_SIZE, maxLotSize)
+      : MAX_ALLOWED_LOT_SIZE;
 
   let currentEquity = Number(initialCapital) || 0;
   
@@ -82,12 +107,13 @@ export function runSimulation(params: SimulationParams): SimulationResult {
 
   const initialStartDateObj = new Date(currentDate);
   
-  let currentLot = calculateLotSize(currentEquity, baseEquity, baseLotSize, lotIncrement);
+  let currentLot = calculateLotSize(currentEquity, baseEquity, baseLotSize, lotIncrement, effectiveMaxLot);
+  let maxLotReachedLogged = currentLot >= effectiveMaxLot;
   const scalingLog: string[] = [
-    `Start: Equity ${currentEquity.toFixed(2)} USDT | Lot ${currentLot.toFixed(4)}`
+    `Start: Equity ${currentEquity.toFixed(2)} USDT | Lot ${currentLot.toFixed(4)} (Max Allow: ${effectiveMaxLot.toFixed(2)})`
   ];
 
-  let prevTier = Math.floor(currentEquity / baseEquity);
+  let prevTier = baseEquity > 0 ? Math.floor(currentEquity / baseEquity) : 1;
   let scalingEvents = 0;
   const rows: SimulationRow[] = [];
 
@@ -123,8 +149,17 @@ export function runSimulation(params: SimulationParams): SimulationResult {
     const dayOfWeek = DAY_NAMES[currentDate.getDay()];
 
     const startEq = currentEquity;
+    const uncappedStartLot = calculateUncappedLotSize(startEq, baseEquity, baseLotSize, lotIncrement);
+    const activeStartLot = calculateLotSize(startEq, baseEquity, baseLotSize, lotIncrement, effectiveMaxLot);
+    const lotCapRatio =
+      uncappedStartLot > activeStartLot && uncappedStartLot > 0
+        ? activeStartLot / uncappedStartLot
+        : 1;
+    const effectiveTradingEq = startEq * lotCapRatio;
+
     const rate = parseFloat(getDailyRate().toFixed(6));
-    const profit = parseFloat((startEq * (rate / 100)).toFixed(8));
+    const profit = parseFloat((effectiveTradingEq * (rate / 100)).toFixed(8));
+    const effectiveProfitPct = startEq > 0 ? (profit / startEq) * 100 : rate;
     totalProfit += profit;
 
     const afterProfit = startEq + profit;
@@ -154,35 +189,44 @@ export function runSimulation(params: SimulationParams): SimulationResult {
     cumWithdrawn += actualWithdraw;
     currentEquity = endEq;
 
-    const curTier = Math.floor(currentEquity / baseEquity);
+    const curTier = baseEquity > 0 ? Math.floor(currentEquity / baseEquity) : 1;
     if (curTier > prevTier) {
-      const newLot = calculateLotSize(currentEquity, baseEquity, baseLotSize, lotIncrement);
+      const newLot = calculateLotSize(currentEquity, baseEquity, baseLotSize, lotIncrement, effectiveMaxLot);
       if (newLot > currentLot) {
+        const hitMax = newLot >= effectiveMaxLot;
         scalingLog.push(
-          `🚀 Day ${day} (${dayOfWeek}, ${dateStr}): Equity ${currentEquity.toFixed(2)} USDT → Lot ${currentLot.toFixed(4)} → ${newLot.toFixed(4)} (Tier ${curTier})`
+          `🚀 Day ${day} (${dayOfWeek}, ${dateStr}): Equity ${currentEquity.toFixed(2)} USDT → Lot ${currentLot.toFixed(4)} → ${newLot.toFixed(4)} (Tier ${curTier}${hitMax ? ` • MAX LOT ${effectiveMaxLot} CAPPED` : ''})`
         );
         currentLot = newLot;
         scalingEvents++;
+        if (hitMax) maxLotReachedLogged = true;
+      } else if (newLot >= effectiveMaxLot && !maxLotReachedLogged) {
+        scalingLog.push(
+          `⚠️ Day ${day} (${dayOfWeek}, ${dateStr}): Max Lot Size Limit (${effectiveMaxLot.toFixed(2)} Lots) reached at Equity ${currentEquity.toFixed(2)} USDT`
+        );
+        maxLotReachedLogged = true;
       }
     }
 
-    const checkLot = calculateLotSize(currentEquity, baseEquity, baseLotSize, lotIncrement);
+    const checkLot = calculateLotSize(currentEquity, baseEquity, baseLotSize, lotIncrement, effectiveMaxLot);
     if (checkLot > currentLot) {
+      const hitMax = checkLot >= effectiveMaxLot;
       scalingLog.push(
-        `📈 Day ${day} (${dayOfWeek}, ${dateStr}): Equity ${currentEquity.toFixed(2)} → Lot upgrade ${currentLot.toFixed(4)} → ${checkLot.toFixed(4)}`
+        `📈 Day ${day} (${dayOfWeek}, ${dateStr}): Equity ${currentEquity.toFixed(2)} → Lot upgrade ${currentLot.toFixed(4)} → ${checkLot.toFixed(4)}${hitMax ? ` (MAX LOT ${effectiveMaxLot} CAPPED)` : ''}`
       );
       currentLot = checkLot;
       scalingEvents++;
+      if (hitMax) maxLotReachedLogged = true;
     }
 
-    prevTier = Math.floor(currentEquity / baseEquity);
+    prevTier = curTier;
 
     chartLabels.push(`D${day}`);
     balanceSeries.push(parseFloat(currentEquity.toFixed(2)));
     cumWithdrawSeries.push(parseFloat(cumWithdrawn.toFixed(2)));
     profitSeries.push(parseFloat(profit.toFixed(2)));
-    profitMinSeries.push(parseFloat((startEq * (profitMin / 100)).toFixed(2)));
-    profitMaxSeries.push(parseFloat((startEq * (profitMax / 100)).toFixed(2)));
+    profitMinSeries.push(parseFloat((effectiveTradingEq * (profitMin / 100)).toFixed(2)));
+    profitMaxSeries.push(parseFloat((effectiveTradingEq * (profitMax / 100)).toFixed(2)));
 
     rows.push({
       day,
@@ -190,7 +234,7 @@ export function runSimulation(params: SimulationParams): SimulationResult {
       dayOfWeek,
       startEquity: parseFloat(startEq.toFixed(2)),
       lotSize: parseFloat(currentLot.toFixed(4)),
-      profitPct: parseFloat(rate.toFixed(2)),
+      profitPct: parseFloat(effectiveProfitPct.toFixed(2)),
       profit: parseFloat(profit.toFixed(2)),
       afterProfit: parseFloat(afterProfit.toFixed(2)),
       withdraw: parseFloat(actualWithdraw.toFixed(2)),
@@ -210,8 +254,8 @@ export function runSimulation(params: SimulationParams): SimulationResult {
     ? Math.round((currentDate.getTime() - initialStartDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1
     : Number(days);
 
-  const finalLot = calculateLotSize(finalCapital, baseEquity, baseLotSize, lotIncrement);
-  const finalTier = Math.floor(finalCapital / baseEquity);
+  const finalLot = calculateLotSize(finalCapital, baseEquity, baseLotSize, lotIncrement, effectiveMaxLot);
+  const finalTier = baseEquity > 0 ? Math.floor(finalCapital / baseEquity) : 1;
 
   const summary: SimulationSummary = {
     projectName,
@@ -229,6 +273,7 @@ export function runSimulation(params: SimulationParams): SimulationResult {
     startDate: startDateFormatted,
     endDate: endDateFormatted,
     finalLot: parseFloat(finalLot.toFixed(4)),
+    maxLotSize: effectiveMaxLot,
     scalingEvents,
     finalTier,
   };
@@ -274,6 +319,7 @@ export function exportSimulationToCSV(
     `"Weekend Filtering","${summary.excludeWeekends ? 'Excluded (Mon-Fri Trading Only)' : 'All Calendar Days'}"`,
     `"Period","${summary.startDate} to ${summary.endDate}"`,
     `"Final Lot Size","${summary.finalLot}"`,
+    `"Max Lot Size Limit","${summary.maxLotSize ?? MAX_ALLOWED_LOT_SIZE}"`,
     `"Scaling Milestones","${summary.scalingEvents}"`,
     '',
     '"Day","Date","Day of Week","Start Equity (USDT)","Lot Size","Profit %","Profit (USDT)","After Profit","Withdraw (USDT)","Reinvest (USDT)","End Equity (USDT)"'
@@ -374,7 +420,7 @@ export function exportSimulationToPDF(
   doc.setFontSize(8);
   doc.setTextColor(100, 110, 130);
   doc.text(`Total Withdrawn: $${summary.totalWithdrawn.toLocaleString()} | Fee: $${summary.totalFee}`, 20, 71);
-  doc.text(`Final Lot Size: ${summary.finalLot.toFixed(4)} | Scaling Events: ${summary.scalingEvents}`, 115, 71);
+  doc.text(`Final Lot: ${summary.finalLot.toFixed(4)} (Max: ${summary.maxLotSize ?? MAX_ALLOWED_LOT_SIZE}) | Scaling Events: ${summary.scalingEvents}`, 110, 71);
 
   // Daily Data Table
   const tableData = rows.map((r) => [

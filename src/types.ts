@@ -16,6 +16,7 @@ export interface SimulationParams {
   baseEquity: number;
   baseLotSize: number;
   lotIncrement: number;
+  maxLotSize?: number;
   excludeWeekends: boolean;
 }
 
@@ -49,6 +50,7 @@ export interface SimulationSummary {
   startDate: string;
   endDate: string;
   finalLot: number;
+  maxLotSize?: number;
   scalingEvents: number;
   finalTier: number;
 }
@@ -120,6 +122,7 @@ export interface Investor {
   base_equity: number;
   base_lot_size: number;
   lot_increment: number;
+  max_lot_size?: number;
   notes: string;
   created_at: string;
 }
@@ -301,6 +304,7 @@ export type TranslationKey =
   | 'lblBaseEquity'
   | 'lblBaseLot'
   | 'lblLotIncrement'
+  | 'lblMaxLot'
   | 'scalingRule'
   | 'statsTitle'
   | 'labelTotalProfit'

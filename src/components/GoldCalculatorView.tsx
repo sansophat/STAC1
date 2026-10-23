@@ -433,12 +433,17 @@ export const GoldCalculatorView: React.FC<GoldCalculatorViewProps> = ({ t }) => 
                   <input
                     type="number"
                     value={inputs.customLotSize || 0.01}
-                    onChange={(e) => updateInputs({ customLotSize: parseFloat(e.target.value) || 0.01 })}
+                    onChange={(e) =>
+                      updateInputs({
+                        customLotSize: Math.min(200, Math.max(0.01, parseFloat(e.target.value) || 0.01)),
+                      })
+                    }
                     className="w-full bg-slate-900 border border-amber-500/40 rounded-xl px-3 py-2 text-sm text-amber-200 font-mono font-bold"
                     step="0.01"
                     min="0.01"
+                    max="200"
                   />
-                  <span className="text-xs text-slate-400 font-mono">Lots</span>
+                  <span className="text-xs text-slate-400 font-mono shrink-0">Lots (Max 200)</span>
                 </div>
               )}
             </div>

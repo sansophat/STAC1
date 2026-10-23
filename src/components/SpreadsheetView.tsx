@@ -444,8 +444,13 @@ Total Lot Volume: ${outputs.totalLotVolume} Lots`;
                     type="number"
                     step="0.01"
                     min="0.01"
+                    max="200"
                     value={inputs.lotSize}
-                    onChange={(e) => updateInputs({ lotSize: parseFloat(e.target.value) || 0.01 })}
+                    onChange={(e) =>
+                      updateInputs({
+                        lotSize: Math.min(200, Math.max(0.01, parseFloat(e.target.value) || 0.01)),
+                      })
+                    }
                     className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500/50 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-sm font-bold"
                   />
                   <span className="text-[11px] text-slate-400 block font-mono">
